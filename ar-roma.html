@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>AR Roma</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,sans-serif;color:#fff;background:#000;touch-action:none;-webkit-user-select:none;user-select:none}
+#bg{position:fixed;inset:0;z-index:0;background:linear-gradient(180deg,#1a3a6e,#4a6ea0,#c89870,#2a2018)}
+#video{position:fixed;inset:0;z-index:1;width:100%;height:100%;object-fit:cover;display:none}
+#video.on{display:block}
+#linesSvg{position:fixed;inset:0;z-index:2;width:100%;height:100%;pointer-events:none}
+#labels{position:fixed;inset:0;z-index:3;pointer-events:none;overflow:hidden}
+
+.lbl{
+  position:absolute;left:0;top:0;
+  background:rgba(0,0,0,.85);
+  border:1.5px solid #FFD700;
+  border-radius:8px;
+  padding:5px 10px;
+  white-space:nowrap;
+  pointer-events:auto;
+  cursor:pointer;
+  will-change:transform;
+  transition:opacity 0.15s;
+}
+.lbl.occ{border-color:#666;border-style:dashed;opacity:.45}
+.lbl.cat-archeo{border-color:#FFD700}.lbl.cat-chiesa{border-color:#a78bfa}
+.lbl.cat-museo{border-color:#60a5fa}.lbl.cat-piazza{border-color:#34d399}
+.lbl.cat-fontana{border-color:#22d3ee}.lbl.cat-palazzo{border-color:#f97316}
+.lbl.cat-vista{border-color:#f9a8d4}
+.lbl b{font-size:13px;color:#FFD700}
+.lbl.cat-chiesa b{color:#c4b5fd}.lbl.cat-museo b{color:#93c5fd}
+.lbl.cat-piazza b{color:#6ee7b7}.lbl.cat-fontana b{color:#67e8f9}
+.lbl.cat-palazzo b{color:#fdba74}.lbl.cat-vista b{color:#fbcfe8}
+.lbl.occ b{color:#888}
+.lbl span{display:block;font-size:9px;color:#bbb;margin-top:1px}
+
+#crosshair{position:fixed;top:50%;left:50%;width:60px;height:60px;transform:translate(-50%,-50%);z-index:4;pointer-events:none;display:none}
+#crosshair.on{display:block}
+#crosshair::before,#crosshair::after{content:"";position:absolute;background:#FFD700}
+#crosshair::before{left:50%;top:0;width:2px;height:100%;transform:translateX(-50%)}
+#crosshair::after{top:50%;left:0;height:2px;width:100%;transform:translateY(-50%)}
+#crosshair .ring{position:absolute;inset:18px;border:2px solid #FFD700;border-radius:50%;box-shadow:0 0 16px rgba(255,215,0,.9);animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.25);opacity:.5}}
+
+#hud{position:fixed;top:env(safe-area-inset-top,8px);left:8px;right:8px;z-index:5;display:none;justify-content:space-between;gap:6px;font-size:10px;pointer-events:none}
+#hud.on{display:flex}
+.card{background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:5px 8px}
+.card b{color:#FFD700;font-family:Menlo,monospace}
+
+#bar{position:fixed;top:60px;right:8px;z-index:5;display:none;flex-direction:column;gap:6px}
+#bar.on{display:flex}
+.btn{background:rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:50%;width:42px;height:42px;font-size:18px;cursor:pointer}
+.btn.on{border-color:#FFD700;background:rgba(255,215,0,.25)}
+.btn:active{transform:scale(.92)}
+
+#filters{position:fixed;bottom:env(safe-area-inset-bottom,8px);left:8px;right:8px;z-index:5;display:none;flex-wrap:wrap;gap:5px;justify-content:center;background:rgba(0,0,0,.88);border-radius:12px;padding:10px;border:1px solid rgba(255,255,255,.15)}
+#filters.on{display:flex}
+.chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.25);color:#ccc;border-radius:14px;padding:5px 10px;font-size:11px;cursor:pointer;white-space:nowrap}
+.chip.on{background:rgba(255,215,0,.2);border-color:#FFD700;color:#FFD700}
+#filters .row{width:100%;display:flex;gap:5px;flex-wrap:wrap;justify-content:center}
+#filters .row.sep{border-top:1px solid rgba(255,255,255,.1);padding-top:6px;margin-top:4px}
+
+.screen{position:fixed;inset:0;z-index:50;background:linear-gradient(135deg,#16213e 0%,#0f3460 100%);display:none;flex-direction:column;padding:24px;text-align:center;overflow-y:auto}
+.screen.on{display:flex}
+.screen h1{font-size:28px;color:#FFD700;margin:20px 0 8px}
+.screen .step-num{display:inline-block;background:#FFD700;color:#1a1a2e;padding:4px 12px;border-radius:14px;font-weight:700;font-size:11px;margin-bottom:12px;letter-spacing:1px}
+.screen p{color:#ccc;font-size:14px;line-height:1.6;margin-bottom:16px;max-width:380px;align-self:center}
+.screen p b{color:#FFD700}
+.screen .target-info{background:rgba(255,215,0,.1);border:1px solid rgba(255,215,0,.4);border-radius:12px;padding:14px;margin:0 auto 16px;max-width:380px;width:100%;text-align:left}
+.screen .target-info .name{color:#FFD700;font-size:18px;font-weight:700;margin-bottom:4px}
+.screen .target-info .desc{color:#bbb;font-size:12px;line-height:1.5}
+.screen .target-info .data{margin-top:10px;font-family:Menlo,monospace;font-size:11px;color:#999;border-top:1px dashed rgba(255,255,255,.1);padding-top:8px}
+.screen button{background:linear-gradient(135deg,#FFD700,#FFA500);color:#1a1a2e;border:0;padding:16px 32px;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;width:100%;max-width:380px;align-self:center;margin:6px auto}
+.screen button.secondary{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.3);font-size:13px;padding:12px}
+.screen button:active{transform:scale(.98)}
+
+.cal-overlay{position:fixed;left:8px;right:8px;z-index:6;display:none}
+.cal-overlay.on{display:block}
+.cal-top{top:env(safe-area-inset-top,8px);background:rgba(0,0,0,.85);border:2px solid #FFD700;border-radius:12px;padding:12px}
+.cal-bottom{bottom:env(safe-area-inset-bottom,8px);background:rgba(0,0,0,.92);border:1px solid rgba(255,215,0,.5);border-radius:12px;padding:12px}
+.cal-top .step{display:inline-block;background:#FFD700;color:#1a1a2e;padding:2px 8px;border-radius:8px;font-weight:700;font-size:10px;letter-spacing:1px}
+.cal-top h3{color:#FFD700;font-size:16px;margin:6px 0 2px}
+.cal-top p{font-size:11px;color:#ddd;line-height:1.4}
+.cal-top .live{font-family:Menlo,monospace;font-size:10px;color:#aaa;margin-top:4px}
+.cal-top .live b{color:#FFD700}
+.cal-bottom button{width:100%;background:#FFD700;color:#1a1a2e;border:0;padding:14px;border-radius:10px;font-weight:700;font-size:15px;cursor:pointer}
+.cal-bottom button.skip{background:rgba(255,255,255,.1);color:#fff;font-size:12px;padding:10px;margin-top:6px}
+
+#msg{position:fixed;bottom:60px;left:8px;right:8px;z-index:7;background:rgba(0,0,0,.92);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:10px;font-size:12px;text-align:center;display:none}
+#msg.show{display:block}
+#msg.err{border-color:#ef4444;color:#fca5a5}
+#msg.ok{border-color:#22c55e;color:#86efac}
+</style>
+</head>
+<body>
+<div id="bg"></div>
+<video id="video" autoplay playsinline muted webkit-playsinline></video>
+<svg id="linesSvg"></svg>
+<div id="labels"></div>
+<div id="crosshair"><div class="ring"></div></div>
+
+<div id="hud">
+  <div class="card">📍 <b id="pos">--</b></div>
+  <div class="card">🧭 <b id="hh">--</b></div>
+  <div class="card">👁 <b id="cnt">0</b></div>
+</div>
+
+<div id="bar">
+  <button class="btn" id="bFilter">🎛</button>
+  <button class="btn" id="bRecal">⚙</button>
+</div>
+
+<div id="filters">
+  <div class="row" id="catRow"></div>
+  <div class="row sep">
+    <div class="chip" id="chipVis">👁 Solo visibili</div>
+    <div class="chip" id="chipLines">📏 Linee</div>
+  </div>
+</div>
+
+<div class="screen on" id="scrWelcome">
+  <h1>🏛 AR Roma</h1>
+  <p>Visore di Realtà Aumentata sui monumenti di Roma con <b>108 punti di interesse</b>.</p>
+  <p>Per posizionare i POI correttamente serve una <b>calibrazione a 2 punti</b>: ancorerai la Piramide Cestia e l'Altare della Patria, poi tutto si aggiorna in tempo reale mentre muovi il telefono.</p>
+  <button id="bWelcomeNext">📷 Attiva camera e inizia</button>
+</div>
+
+<div class="screen" id="scrP1">
+  <span class="step-num">PASSO 1 DI 2</span>
+  <h1>Punto di riferimento 1</h1>
+  <div class="target-info">
+    <div class="name">🔻 Piramide Cestia</div>
+    <div class="desc">Tomba egittizzante del 12 a.C., vicino a Porta San Paolo.</div>
+    <div class="data" id="p1Data">Calcolo distanza...</div>
+  </div>
+  <p>1️⃣ Punta il telefono verso la <b>Piramide Cestia</b><br>2️⃣ Allineala al <b>mirino centrale</b> 🎯<br>3️⃣ Tocca <b>"Ancora qui"</b></p>
+  <button id="bP1Start">Vai al punto 1 →</button>
+  <button class="secondary" id="bP1Skip">Salta calibrazione</button>
+</div>
+
+<div class="screen" id="scrP2">
+  <span class="step-num">PASSO 2 DI 2</span>
+  <h1>Punto di riferimento 2</h1>
+  <div class="target-info">
+    <div class="name">🏛 Altare della Patria</div>
+    <div class="desc">Il Vittoriano in marmo bianco, alto 81m. Domina Piazza Venezia.</div>
+    <div class="data" id="p2Data">Calcolo distanza...</div>
+  </div>
+  <p>1️⃣ Punta il telefono verso l'<b>Altare della Patria</b><br>2️⃣ Allinealo al <b>mirino centrale</b> 🎯<br>3️⃣ Tocca <b>"Ancora qui"</b></p>
+  <button id="bP2Start">Vai al punto 2 →</button>
+</div>
+
+<div class="cal-overlay cal-top" id="calTop">
+  <span class="step">CALIBRAZIONE</span>
+  <h3 id="calTopName">--</h3>
+  <p id="calTopHint">Allinea al mirino e tocca "Ancora qui"</p>
+  <div class="live">Bussola: <b id="liveH">--</b> · Atteso: <b id="liveExp">--</b> · Δ <b id="liveDelta">--</b></div>
+</div>
+<div class="cal-overlay cal-bottom" id="calBottom">
+  <button id="bAnchor">📌 Ancora qui</button>
+  <button class="skip" id="bAnchorSkip">Annulla</button>
+</div>
+
+<div id="msg"></div>
+
+<script>
+"use strict";
+
+var POI = [
+  {n:"Colosseo",cat:"archeo",lat:41.8902,lon:12.4922,h:66},
+  {n:"Foro Romano",cat:"archeo",lat:41.8925,lon:12.4853,h:25},
+  {n:"Fori Imperiali",cat:"archeo",lat:41.8939,lon:12.4870,h:30},
+  {n:"Colonna Traiana",cat:"archeo",lat:41.8956,lon:12.4844,h:58},
+  {n:"Arco Costantino",cat:"archeo",lat:41.8898,lon:12.4906,h:39},
+  {n:"Pantheon",cat:"archeo",lat:41.8986,lon:12.4769,h:57},
+  {n:"Domus Aurea",cat:"archeo",lat:41.8917,lon:12.4956,h:75},
+  {n:"Circo Massimo",cat:"archeo",lat:41.8859,lon:12.4853,h:13},
+  {n:"Terme Caracalla",cat:"archeo",lat:41.8789,lon:12.4925,h:55},
+  {n:"Piramide Cestia",cat:"archeo",lat:41.8761,lon:12.4811,h:49},
+  {n:"Mausoleo Adriano",cat:"archeo",lat:41.9031,lon:12.4663,h:67},
+  {n:"Bocca Verità",cat:"archeo",lat:41.8881,lon:12.4814,h:13},
+  {n:"Teatro Marcello",cat:"archeo",lat:41.8920,lon:12.4794,h:46},
+  {n:"Largo Argentina",cat:"archeo",lat:41.8956,lon:12.4769,h:15},
+  {n:"Stadio Domiziano",cat:"archeo",lat:41.8992,lon:12.4731,h:14},
+  {n:"Ara Pacis",cat:"archeo",lat:41.9061,lon:12.4756,h:28},
+  {n:"Mausoleo Augusto",cat:"archeo",lat:41.9067,lon:12.4767,h:56},
+  {n:"Tempio Adriano",cat:"archeo",lat:41.8997,lon:12.4794,h:39},
+  {n:"Tempio Ercole",cat:"archeo",lat:41.8889,lon:12.4814,h:24},
+  {n:"Mura Aureliane",cat:"archeo",lat:41.8741,lon:12.5036,h:48},
+  {n:"Ponte S.Angelo",cat:"archeo",lat:41.9020,lon:12.4664,h:25},
+  {n:"Ponte Milvio",cat:"archeo",lat:41.9356,lon:12.4669,h:28},
+  {n:"Catacombe Callisto",cat:"archeo",lat:41.8589,lon:12.5103,h:50},
+  {n:"Via Appia Antica",cat:"archeo",lat:41.8556,lon:12.5161,h:50},
+  {n:"Tomba Cecilia Metella",cat:"archeo",lat:41.8537,lon:12.5208,h:60},
+  {n:"Acquedotti",cat:"archeo",lat:41.8525,lon:12.5519,h:40},
+  {n:"Domus Tiberiana",cat:"archeo",lat:41.8895,lon:12.4870,h:60},
+  {n:"Porta S.Paolo",cat:"archeo",lat:41.8765,lon:12.4810,h:38},
+  {n:"San Pietro",cat:"chiesa",lat:41.9022,lon:12.4539,h:160},
+  {n:"S.Maria Maggiore",cat:"chiesa",lat:41.8975,lon:12.4983,h:125},
+  {n:"S.Giovanni Laterano",cat:"chiesa",lat:41.8859,lon:12.5056,h:103},
+  {n:"S.Paolo Mura",cat:"chiesa",lat:41.8589,lon:12.4769,h:80},
+  {n:"S.Maria Trastevere",cat:"chiesa",lat:41.8895,lon:12.4694,h:44},
+  {n:"S.Maria Minerva",cat:"chiesa",lat:41.8983,lon:12.4781,h:49},
+  {n:"S.Maria Popolo",cat:"chiesa",lat:41.9114,lon:12.4767,h:50},
+  {n:"S.Luigi Francesi",cat:"chiesa",lat:41.8993,lon:12.4744,h:44},
+  {n:"S.Andrea Valle",cat:"chiesa",lat:41.8956,lon:12.4744,h:94},
+  {n:"Il Gesù",cat:"chiesa",lat:41.8959,lon:12.4794,h:49},
+  {n:"S.Ignazio Loyola",cat:"chiesa",lat:41.8989,lon:12.4794,h:49},
+  {n:"S.Carlo 4 Fontane",cat:"chiesa",lat:41.9011,lon:12.4906,h:90},
+  {n:"S.Ivo Sapienza",cat:"chiesa",lat:41.8983,lon:12.4747,h:64},
+  {n:"S.Maria Vittoria",cat:"chiesa",lat:41.9047,lon:12.4944,h:90},
+  {n:"S.Pietro Vincoli",cat:"chiesa",lat:41.8939,lon:12.4933,h:80},
+  {n:"S.Clemente",cat:"chiesa",lat:41.8894,lon:12.4975,h:50},
+  {n:"S.Maria Cosmedin",cat:"chiesa",lat:41.8881,lon:12.4814,h:47},
+  {n:"Trinità Monti",cat:"chiesa",lat:41.9063,lon:12.4828,h:82},
+  {n:"S.Sabina",cat:"chiesa",lat:41.8842,lon:12.4790,h:75},
+  {n:"S.Maria Aracoeli",cat:"chiesa",lat:41.8939,lon:12.4831,h:75},
+  {n:"Chiesa Nuova",cat:"chiesa",lat:41.8983,lon:12.4708,h:74},
+  {n:"S.Andrea Quirinale",cat:"chiesa",lat:41.9000,lon:12.4889,h:91},
+  {n:"S.Agnese Agone",cat:"chiesa",lat:41.8995,lon:12.4729,h:82},
+  {n:"S.Cecilia Trastevere",cat:"chiesa",lat:41.8869,lon:12.4769,h:50},
+  {n:"S.Crisogono",cat:"chiesa",lat:41.8889,lon:12.4708,h:50},
+  {n:"Tempio Bramante",cat:"chiesa",lat:41.8889,lon:12.4661,h:65},
+  {n:"Musei Capitolini",cat:"museo",lat:41.8932,lon:12.4828,h:76},
+  {n:"Musei Vaticani",cat:"museo",lat:41.9065,lon:12.4536,h:63},
+  {n:"Galleria Borghese",cat:"museo",lat:41.9142,lon:12.4922,h:87},
+  {n:"Palazzo Massimo",cat:"museo",lat:41.9008,lon:12.5008,h:60},
+  {n:"MAXXI",cat:"museo",lat:41.9286,lon:12.4669,h:40},
+  {n:"Doria Pamphilj",cat:"museo",lat:41.8978,lon:12.4814,h:42},
+  {n:"Palazzo Altemps",cat:"museo",lat:41.9008,lon:12.4731,h:42},
+  {n:"Centrale Montemartini",cat:"museo",lat:41.8678,lon:12.4789,h:45},
+  {n:"GNAM",cat:"museo",lat:41.9156,lon:12.4811,h:80},
+  {n:"MACRO",cat:"museo",lat:41.9128,lon:12.5072,h:35},
+  {n:"P.Navona",cat:"piazza",lat:41.8992,lon:12.4731,h:14},
+  {n:"P.Spagna",cat:"piazza",lat:41.9058,lon:12.4823,h:22},
+  {n:"P.Popolo",cat:"piazza",lat:41.9108,lon:12.4767,h:20},
+  {n:"P.Venezia",cat:"piazza",lat:41.8956,lon:12.4823,h:23},
+  {n:"Campidoglio",cat:"piazza",lat:41.8932,lon:12.4828,h:46},
+  {n:"P.Farnese",cat:"piazza",lat:41.8950,lon:12.4708,h:14},
+  {n:"Campo de' Fiori",cat:"piazza",lat:41.8956,lon:12.4722,h:14},
+  {n:"P.Trilussa",cat:"piazza",lat:41.8911,lon:12.4694,h:13},
+  {n:"P.Barberini",cat:"piazza",lat:41.9036,lon:12.4889,h:30},
+  {n:"P.Repubblica",cat:"piazza",lat:41.9019,lon:12.4969,h:53},
+  {n:"P.Mattei",cat:"piazza",lat:41.8939,lon:12.4778,h:14},
+  {n:"P.Quirinale",cat:"piazza",lat:41.9011,lon:12.4869,h:61},
+  {n:"Fontana Trevi",cat:"fontana",lat:41.9009,lon:12.4833,h:51},
+  {n:"Fontana Tritone",cat:"fontana",lat:41.9044,lon:12.4889,h:38},
+  {n:"Fontana Tartarughe",cat:"fontana",lat:41.8939,lon:12.4778,h:19},
+  {n:"Fontanone Gianicolo",cat:"fontana",lat:41.8939,lon:12.4625,h:86},
+  {n:"Quattro Fontane",cat:"fontana",lat:41.9008,lon:12.4906,h:61},
+  {n:"Fontana Naiadi",cat:"fontana",lat:41.9019,lon:12.4969,h:55},
+  {n:"Fontana Api",cat:"fontana",lat:41.9036,lon:12.4889,h:32},
+  {n:"Fontana Barcaccia",cat:"fontana",lat:41.9058,lon:12.4823,h:24},
+  {n:"Fontana Moro",cat:"fontana",lat:41.8989,lon:12.4731,h:18},
+  {n:"Fontana Nettuno",cat:"fontana",lat:41.8997,lon:12.4731,h:18},
+  {n:"Altare Patria",cat:"palazzo",lat:41.8956,lon:12.4823,h:111},
+  {n:"Castel S.Angelo",cat:"palazzo",lat:41.9031,lon:12.4663,h:67},
+  {n:"Palazzo Farnese",cat:"palazzo",lat:41.8950,lon:12.4708,h:44},
+  {n:"Quirinale",cat:"palazzo",lat:41.9014,lon:12.4869,h:91},
+  {n:"P.Madama",cat:"palazzo",lat:41.8989,lon:12.4747,h:42},
+  {n:"Montecitorio",cat:"palazzo",lat:41.9000,lon:12.4783,h:42},
+  {n:"P.Barberini (Pal.)",cat:"palazzo",lat:41.9036,lon:12.4889,h:62},
+  {n:"P.Pamphilj",cat:"palazzo",lat:41.8989,lon:12.4731,h:42},
+  {n:"P.Spada",cat:"palazzo",lat:41.8939,lon:12.4711,h:38},
+  {n:"Villa Medici",cat:"palazzo",lat:41.9078,lon:12.4825,h:82},
+  {n:"P.Chigi",cat:"palazzo",lat:41.9011,lon:12.4794,h:42},
+  {n:"Gianicolo",cat:"vista",lat:41.8919,lon:12.4633,h:88},
+  {n:"Pincio",cat:"vista",lat:41.9105,lon:12.4789,h:63},
+  {n:"Aventino",cat:"vista",lat:41.8847,lon:12.4789,h:42},
+  {n:"Buco Serratura",cat:"vista",lat:41.8836,lon:12.4778,h:45},
+  {n:"Monte Mario",cat:"vista",lat:41.9244,lon:12.4419,h:229},
+  {n:"Villa Borghese",cat:"vista",lat:41.9139,lon:12.4920,h:55},
+  {n:"Villa Pamphilj",cat:"vista",lat:41.8842,lon:12.4544,h:75},
+  {n:"Stadio Olimpico",cat:"vista",lat:41.9339,lon:12.4547,h:55},
+  {n:"Torre Milizie",cat:"vista",lat:41.8950,lon:12.4858,h:80},
+  {n:"Cupolone",cat:"vista",lat:41.9022,lon:12.4544,h:160}
+];
+
+var RIDGES = [
+  {lat:41.8919,lon:12.4633,alt:88},{lat:41.8836,lon:12.4789,alt:46},
+  {lat:41.8895,lon:12.4878,alt:51},{lat:41.9011,lon:12.4878,alt:61},
+  {lat:41.8964,lon:12.4994,alt:54},{lat:41.8978,lon:12.4953,alt:53},
+  {lat:41.8861,lon:12.4953,alt:50},{lat:41.9108,lon:12.4789,alt:55},
+  {lat:41.9244,lon:12.4419,alt:139},{lat:41.8819,lon:12.4569,alt:70}
+];
+
+var CAT_COLORS={archeo:"#FFD700",chiesa:"#a78bfa",museo:"#60a5fa",piazza:"#34d399",fontana:"#22d3ee",palazzo:"#f97316",vista:"#f9a8d4"};
+var CAT_LABELS={archeo:"Archeo",chiesa:"Chiese",museo:"Musei",piazza:"Piazze",fontana:"Fontane",palazzo:"Palazzi",vista:"Panorami"};
+
+// ============ STATE ============
+var st = {
+  lat:41.8808, lon:12.4654, alt:70,
+  // Raw sensor values (updated directly from device events)
+  rawHeading:90, rawPitch:0, rawRoll:0,
+  // Smoothed values (EMA applied every frame)
+  heading:90, pitch:0,
+  // Calibration
+  phase:"welcome",
+  calP1:null, calP2:null,
+  headingOffset:0, pitchOffset:0,
+  fovH:65,
+  // UI
+  showOnlyVisible:false, showLines:true,
+  filterCat:{archeo:true,chiesa:true,museo:true,piazza:true,fontana:true,palazzo:true,vista:true}
+};
+
+// ============ MATH ============
+function rad(d){return d*Math.PI/180}
+function deg(r){return r*180/Math.PI}
+function bear(la1,lo1,la2,lo2){
+  var f1=rad(la1),f2=rad(la2),dl=rad(lo2-lo1);
+  return(deg(Math.atan2(Math.sin(dl)*Math.cos(f2),Math.cos(f1)*Math.sin(f2)-Math.sin(f1)*Math.cos(f2)*Math.cos(dl)))+360)%360;
+}
+function dist(la1,lo1,la2,lo2){
+  var R=6371000,f1=rad(la1),f2=rad(la2),df=rad(la2-la1),dl=rad(lo2-lo1);
+  var a=Math.sin(df/2)*Math.sin(df/2)+Math.cos(f1)*Math.cos(f2)*Math.sin(dl/2)*Math.sin(dl/2);
+  return 2*R*Math.asin(Math.sqrt(a));
+}
+function adiff(a,b){return((a-b+540)%360)-180}
+function fmt(m){return m<1000?Math.round(m)+"m":(m/1000).toFixed(1)+"km"}
+
+// Circular EMA smoothing
+var ALPHA_H = 0.2;   // heading: lower = smoother / more lag
+var ALPHA_P = 0.3;   // pitch: can afford slightly more responsiveness
+
+function stepSmooth(){
+  // Heading: handle 359→0 wrap with angular diff
+  st.heading = (st.heading + adiff(st.rawHeading, st.heading) * ALPHA_H + 360) % 360;
+  // Pitch: simple linear EMA
+  st.pitch += (st.rawPitch - st.pitch) * ALPHA_P;
+}
+
+// Effective heading and pitch (includes calibration offsets)
+function effH(){return((st.heading+st.headingOffset)%360+360)%360}
+function effP(){return st.pitch+st.pitchOffset}
+
+// ============ OCCLUSION ============
+function isOccluded(p){
+  var d=dist(st.lat,st.lon,p.lat,p.lon);
+  if(d<80||p.h>st.alt+50) return false;
+  for(var i=0;i<RIDGES.length;i++){
+    var r=RIDGES[i];
+    if(Math.abs(r.lat-p.lat)<0.0008&&Math.abs(r.lon-p.lon)<0.0008) continue;
+    if(r.alt<Math.min(st.alt,p.h)-5) continue;
+    var dR=dist(st.lat,st.lon,r.lat,r.lon);
+    if(dR>=d||dR<30) continue;
+    var off=Math.abs(adiff(bear(st.lat,st.lon,p.lat,p.lon),bear(st.lat,st.lon,r.lat,r.lon)));
+    if(dR*Math.abs(Math.sin(rad(off)))>100) continue;
+    if(r.alt>st.alt+(dR/d)*(p.h-st.alt)+3) return true;
+  }
+  return false;
+}
+
+// ============ POI CACHE ============
+// Static per-POI data (bearing, dist, elev, occlusion) — only rebuilt on GPS move
+var poiCache=[];
+var lastCacheLat=null, lastCacheLon=null;
+
+function rebuildPoiCache(){
+  poiCache=[];
+  for(var i=0;i<POI.length;i++){
+    var p=POI[i];
+    var d=dist(st.lat,st.lon,p.lat,p.lon);
+    var az=bear(st.lat,st.lon,p.lat,p.lon);
+    var elev=deg(Math.atan2(p.h-st.alt,d));
+    poiCache.push({p:p,d:d,az:az,elev:elev,occ:isOccluded(p)});
+  }
+  lastCacheLat=st.lat; lastCacheLon=st.lon;
+}
+
+function maybeRebuildCache(){
+  if(lastCacheLat===null){rebuildPoiCache();return}
+  if(Math.abs(st.lat-lastCacheLat)>0.0001||Math.abs(st.lon-lastCacheLon)>0.0001) rebuildPoiCache();
+}
+
+// ============ RENDER LOOP ============
+// Each frame: project all POI from current heading/pitch → screen coords
+// Labels are GPU-composited via transform3d for maximum smoothness.
+
+var pool={};
+var labelsEl=document.getElementById("labels");
+var linesSvg=document.getElementById("linesSvg");
+var _w=0,_h=0;
+
+function render(){
+  var w=innerWidth, h=innerHeight;
+  _w=w; _h=h;
+
+  // Always update HUD
+  document.getElementById("hh").textContent=Math.round(effH())+"°";
+  document.getElementById("pos").textContent=st.lat.toFixed(4)+","+st.lon.toFixed(4);
+
+  if(st.phase!=="ready") return;
+
+  maybeRebuildCache();
+
+  var hed=effH(), ptc=effP();
+  var fH=st.fovH, fV=fH*(h/w);
+  var seen={};
+  var visN=0;
+
+  // Clear SVG lines each frame
+  linesSvg.innerHTML="";
+  linesSvg.setAttribute("viewBox","0 0 "+w+" "+h);
+
+  // --- Project all visible POI onto screen ---
+  var items=[];
+  for(var i=0;i<poiCache.length;i++){
+    var c=poiCache[i], p=c.p;
+    if(!st.filterCat[p.cat]) continue;
+    if(st.showOnlyVisible&&c.occ) continue;
+
+    // Angular offset from screen center
+    var dx=adiff(c.az,hed);
+    var dy=c.elev-ptc;
+
+    // Only render if inside FOV (with a small margin to avoid pop-in)
+    if(Math.abs(dx)>fH/2+2||Math.abs(dy)>fV/2+2) continue;
+
+    // Map angular offset to pixel position
+    // Using tan-based projection for accuracy (not linear approximation)
+    var px = w/2 + (Math.tan(rad(dx))/Math.tan(rad(fH/2))) * (w/2);
+    var py = h/2 - (Math.tan(rad(dy))/Math.tan(rad(fV/2))) * (h/2);
+
+    items.push({p:p, px:px, py:py, d:c.d, occ:c.occ});
+  }
+
+  // Sort far→near so near labels draw on top
+  items.sort(function(a,b){return b.d-a.d});
+
+  // Anti-overlap: push label positions vertically
+  for(var i=0;i<items.length;i++) items[i].ly=items[i].py+56;
+  for(var i=0;i<items.length;i++){
+    for(var j=0;j<i;j++){
+      if(Math.abs(items[i].px-items[j].px)<120&&Math.abs(items[i].ly-items[j].ly)<34){
+        items[i].ly=items[j].ly+38;
+      }
+    }
+  }
+
+  // Render each item
+  for(var i=0;i<items.length;i++){
+    var it=items[i], p=it.p;
+    seen[p.n]=true;
+    if(!it.occ) visN++;
+
+    // SVG connector line
+    if(st.showLines){
+      var col=it.occ?"#666":(CAT_COLORS[p.cat]||"#FFD700");
+      var line=document.createElementNS("http://www.w3.org/2000/svg","line");
+      line.setAttribute("x1",it.px); line.setAttribute("y1",it.py);
+      line.setAttribute("x2",it.px); line.setAttribute("y2",it.ly-14);
+      line.setAttribute("stroke",col); line.setAttribute("stroke-width","1.5");
+      line.setAttribute("stroke-dasharray","3,3");
+      line.setAttribute("opacity",it.occ?"0.35":"0.8");
+      linesSvg.appendChild(line);
+      var dot=document.createElementNS("http://www.w3.org/2000/svg","circle");
+      dot.setAttribute("cx",it.px); dot.setAttribute("cy",it.py);
+      dot.setAttribute("r","4"); dot.setAttribute("fill",col);
+      dot.setAttribute("stroke","#000"); dot.setAttribute("stroke-width","1");
+      linesSvg.appendChild(dot);
+    }
+
+    // Label DOM node (pooled)
+    var el=pool[p.n];
+    if(!el){
+      el=document.createElement("div");
+      el.className="lbl cat-"+p.cat;
+      el.innerHTML="<b></b><span></span>";
+      el.querySelector("b").textContent=p.n;
+      labelsEl.appendChild(el);
+      pool[p.n]=el;
+    }
+    el.classList.toggle("occ",it.occ);
+    el.querySelector("span").textContent=fmt(it.d)+" · "+p.h+"m";
+
+    // KEY FIX: transform is recalculated every single frame from live heading/pitch.
+    // translate3d keeps this on the GPU compositor thread for buttery 60fps.
+    el.style.transform="translate3d("+it.px+"px,"+it.ly+"px,0) translate(-50%,-50%)";
+    el.style.zIndex=Math.round(100000-it.d);
+    el.style.display="";
+  }
+
+  // Hide labels that left the FOV
+  for(var k in pool){
+    if(!seen[k]){
+      pool[k].style.display="none";
+    }
+  }
+
+  document.getElementById("cnt").textContent=visN;
+}
+
+// === Main animation loop — runs every frame regardless of phase ===
+function loop(){
+  stepSmooth();
+  render();
+
+  // Live calibration display
+  if(st.phase==="calP1"||st.phase==="calP2"){
+    var tgt=st.phase==="calP1"?"Piramide Cestia":"Altare Patria";
+    var tp=POI.find(function(x){return x.n===tgt});
+    if(tp){
+      var az=bear(st.lat,st.lon,tp.lat,tp.lon);
+      var delta=adiff(az,effH());
+      document.getElementById("liveH").textContent=Math.round(effH())+"°";
+      document.getElementById("liveExp").textContent=Math.round(az)+"°";
+      document.getElementById("liveDelta").textContent=(delta>0?"+":"")+Math.round(delta)+"°";
+      document.getElementById("liveDelta").style.color=Math.abs(delta)<5?"#22c55e":"#FFD700";
+    }
+  }
+
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ============ SENSORS ============
+// Uses DeviceOrientationEvent for compass heading + pitch.
+// On iOS 13+ requires explicit permission.
+
+function onOrientation(e){
+  // Heading: prefer webkitCompassHeading (true north, already corrected for device tilt)
+  if(typeof e.webkitCompassHeading==="number"){
+    st.rawHeading=e.webkitCompassHeading;
+  } else if(e.alpha!==null){
+    st.rawHeading=(360-e.alpha)%360;
+  }
+
+  // Pitch from beta:
+  // beta=90  → phone upright, camera pointing at horizon → pitch 0
+  // beta=0   → phone flat face-up → pitch +90 (camera pointing up)
+  // beta=180 → phone flat face-down → pitch -90
+  // We clamp to ±60° for sanity
+  if(e.beta!==null){
+    var raw=90-e.beta;
+    st.rawPitch=Math.max(-60,Math.min(60,raw));
+  }
+}
+
+async function startGyro(){
+  try{
+    if(typeof DeviceOrientationEvent!=="undefined"&&
+       typeof DeviceOrientationEvent.requestPermission==="function"){
+      var r=await DeviceOrientationEvent.requestPermission();
+      if(r!=="granted"){msg("Permesso sensori negato","err");return false}
+    }
+    window.addEventListener("deviceorientation",onOrientation,true);
+    // Seed smooth state immediately
+    setTimeout(function(){
+      st.heading=st.rawHeading;
+      st.pitch=st.rawPitch;
+    },200);
+    return true;
+  }catch(e){msg("Sensori: "+e.message,"err");return false}
+}
+
+// ============ CAMERA ============
+async function startCam(){
+  try{
+    var stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:"environment",width:{ideal:1920},height:{ideal:1080}}
+    });
+    var v=document.getElementById("video");
+    v.srcObject=stream;
+    v.classList.add("on");
+  }catch(e){
+    msg("Camera: "+e.message,"err");
+  }
+}
+
+// ============ GPS ============
+function startGps(){
+  if(!navigator.geolocation) return;
+  navigator.geolocation.watchPosition(
+    function(p){
+      st.lat=p.coords.latitude;
+      st.lon=p.coords.longitude;
+      if(p.coords.altitude!==null&&p.coords.altitude>0) st.alt=p.coords.altitude;
+      rebuildPoiCache(); // Rebuild on every GPS update for accuracy
+    },
+    function(e){console.warn("GPS:",e.message)},
+    {enableHighAccuracy:true,maximumAge:3000,timeout:15000}
+  );
+}
+
+// ============ CALIBRATION FLOW ============
+var TARGET_P1="Piramide Cestia";
+var TARGET_P2="Altare Patria";
+
+function showScreen(id){
+  ["scrWelcome","scrP1","scrP2"].forEach(function(s){
+    document.getElementById(s).classList.toggle("on",s===id);
+  });
+}
+
+function showCalOverlay(name,hint){
+  document.getElementById("calTopName").textContent=name;
+  document.getElementById("calTopHint").textContent=hint;
+  document.getElementById("calTop").classList.add("on");
+  document.getElementById("calBottom").classList.add("on");
+  document.getElementById("crosshair").classList.add("on");
+  document.getElementById("hud").classList.add("on");
+}
+function hideCalOverlay(){
+  document.getElementById("calTop").classList.remove("on");
+  document.getElementById("calBottom").classList.remove("on");
+  document.getElementById("crosshair").classList.remove("on");
+}
+
+function updateTargetInfo(){
+  var p1=POI.find(function(p){return p.n===TARGET_P1});
+  var p2=POI.find(function(p){return p.n===TARGET_P2});
+  if(p1){
+    var d1=dist(st.lat,st.lon,p1.lat,p1.lon);
+    document.getElementById("p1Data").textContent=
+      "Distanza: "+fmt(d1)+" · Direzione: "+Math.round(bear(st.lat,st.lon,p1.lat,p1.lon))+"° · Quota: "+p1.h+"m";
+  }
+  if(p2){
+    var d2=dist(st.lat,st.lon,p2.lat,p2.lon);
+    document.getElementById("p2Data").textContent=
+      "Distanza: "+fmt(d2)+" · Direzione: "+Math.round(bear(st.lat,st.lon,p2.lat,p2.lon))+"° · Quota: "+p2.h+"m";
+  }
+}
+
+document.getElementById("bWelcomeNext").onclick=async function(){
+  showScreen(null);
+  await startCam();
+  await startGyro();
+  startGps();
+  setTimeout(function(){
+    st.heading=st.rawHeading;
+    st.pitch=st.rawPitch;
+    updateTargetInfo();
+    showScreen("scrP1");
+    st.phase="p1";
+  },800);
+};
+
+document.getElementById("bP1Start").onclick=function(){
+  showScreen(null);
+  st.phase="calP1";
+  showCalOverlay("🔻 Piramide Cestia","Allinea al mirino · Δ=0° significa allineato");
+};
+
+document.getElementById("bP1Skip").onclick=function(){
+  showScreen(null);
+  st.phase="ready";
+  document.getElementById("bar").classList.add("on");
+  document.getElementById("hud").classList.add("on");
+  rebuildPoiCache();
+  msg("Modalità senza calibrazione (precisione bassa)","err");
+};
+
+document.getElementById("bP2Start").onclick=function(){
+  showScreen(null);
+  st.phase="calP2";
+  showCalOverlay("🏛 Altare della Patria","Allinea al mirino · Δ=0° significa allineato");
+};
+
+// ============ ANCHOR (2-point calibration solver) ============
+document.getElementById("bAnchor").onclick=function(){
+  if(st.phase==="calP1"){
+    var p=POI.find(function(x){return x.n===TARGET_P1});
+    var d=dist(st.lat,st.lon,p.lat,p.lon);
+    st.calP1={
+      poi:p,
+      smoothH:st.heading,    // frozen smooth heading at anchor moment
+      smoothP:st.pitch,
+      azReal:bear(st.lat,st.lon,p.lat,p.lon),
+      elevReal:deg(Math.atan2(p.h-st.alt,d))
+    };
+    msg("✓ P1 ancorato","ok");
+    hideCalOverlay();
+    setTimeout(function(){updateTargetInfo();showScreen("scrP2");},400);
+
+  }else if(st.phase==="calP2"){
+    var p=POI.find(function(x){return x.n===TARGET_P2});
+    var d=dist(st.lat,st.lon,p.lat,p.lon);
+    st.calP2={
+      poi:p,
+      smoothH:st.heading,
+      smoothP:st.pitch,
+      azReal:bear(st.lat,st.lon,p.lat,p.lon),
+      elevReal:deg(Math.atan2(p.h-st.alt,d))
+    };
+
+    // --- Solve heading offset ---
+    // For each anchor: headingOffset = azReal - smoothH  (mod 360, wrapped to ±180)
+    var off1=adiff(st.calP1.azReal,st.calP1.smoothH);
+    var off2=adiff(st.calP2.azReal,st.calP2.smoothH);
+    st.headingOffset=(off1+off2)/2;
+
+    // --- Solve pitch offset ---
+    var pOff1=st.calP1.elevReal-st.calP1.smoothP;
+    var pOff2=st.calP2.elevReal-st.calP2.smoothP;
+    st.pitchOffset=(pOff1+pOff2)/2;
+
+    // --- Refine FOV from the angular separation between the two anchors ---
+    // dRaw: how many degrees the sensor reported between P1 and P2
+    // dReal: the true angular separation in the world
+    // If they differ, the camera's actual FOV differs from the 65° default.
+    var dRaw=adiff(st.calP2.smoothH,st.calP1.smoothH);
+    var dReal=adiff(st.calP2.azReal,st.calP1.azReal);
+    if(Math.abs(dRaw)>8&&Math.abs(dReal)>8){
+      var ratio=Math.abs(dReal/dRaw);
+      ratio=Math.max(0.55,Math.min(1.6,ratio));
+      st.fovH=65*ratio;
+    }
+
+    var divergence=Math.abs(adiff(off1,off2));
+    if(divergence>30){
+      msg("⚠ Calibrazione imprecisa (Δ"+Math.round(divergence)+"°). Riprova.","err");
+    }else{
+      msg("✓ Calibrazione OK · offset "+Math.round(st.headingOffset)+"° · FOV "+Math.round(st.fovH)+"°","ok");
+    }
+
+    hideCalOverlay();
+    st.phase="ready";
+    document.getElementById("bar").classList.add("on");
+    document.getElementById("hud").classList.add("on");
+    rebuildPoiCache();
+  }
+};
+
+document.getElementById("bAnchorSkip").onclick=function(){
+  hideCalOverlay();
+  if(st.phase==="calP1") showScreen("scrP1");
+  else if(st.phase==="calP2") showScreen("scrP2");
+};
+
+document.getElementById("bRecal").onclick=function(){
+  st.calP1=null; st.calP2=null;
+  st.headingOffset=0; st.pitchOffset=0; st.fovH=65;
+  st.phase="p1";
+  document.getElementById("bar").classList.remove("on");
+  document.getElementById("hud").classList.remove("on");
+  document.getElementById("filters").classList.remove("on");
+  // Clear all pooled labels
+  for(var k in pool){pool[k].remove();delete pool[k]}
+  linesSvg.innerHTML="";
+  updateTargetInfo();
+  showScreen("scrP1");
+};
+
+// ============ FILTERS ============
+function buildFilters(){
+  var row=document.getElementById("catRow");
+  row.innerHTML="";
+  for(var k in CAT_LABELS){
+    (function(cat){
+      var chip=document.createElement("div");
+      chip.className="chip"+(st.filterCat[cat]?" on":"");
+      chip.textContent=CAT_LABELS[cat];
+      chip.style.borderColor=st.filterCat[cat]?CAT_COLORS[cat]:"rgba(255,255,255,.25)";
+      chip.style.color=st.filterCat[cat]?CAT_COLORS[cat]:"#ccc";
+      chip.onclick=function(){
+        st.filterCat[cat]=!st.filterCat[cat];
+        chip.classList.toggle("on",st.filterCat[cat]);
+        chip.style.borderColor=st.filterCat[cat]?CAT_COLORS[cat]:"rgba(255,255,255,.25)";
+        chip.style.color=st.filterCat[cat]?CAT_COLORS[cat]:"#ccc";
+      };
+      row.appendChild(chip);
+    })(k);
+  }
+  var chipVis=document.getElementById("chipVis");
+  chipVis.classList.toggle("on",st.showOnlyVisible);
+  chipVis.onclick=function(){
+    st.showOnlyVisible=!st.showOnlyVisible;
+    chipVis.classList.toggle("on",st.showOnlyVisible);
+  };
+  var chipLines=document.getElementById("chipLines");
+  chipLines.classList.toggle("on",st.showLines);
+  chipLines.onclick=function(){
+    st.showLines=!st.showLines;
+    chipLines.classList.toggle("on",st.showLines);
+  };
+}
+buildFilters();
+
+document.getElementById("bFilter").onclick=function(){
+  document.getElementById("filters").classList.toggle("on");
+};
+
+// ============ TOAST ============
+var msgTimer=null;
+function msg(t,type){
+  var m=document.getElementById("msg");
+  m.textContent=t;
+  m.className="show"+(type==="err"?" err":type==="ok"?" ok":"");
+  clearTimeout(msgTimer);
+  msgTimer=setTimeout(function(){m.className=""},3500);
+}
+
+window.addEventListener("resize",function(){rebuildPoiCache()});
+</script>
+</body>
+</html>
