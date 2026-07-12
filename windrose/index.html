@@ -261,7 +261,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
 }
 #panel .peak-name.idle{background:none;-webkit-text-fill-color:var(--muted);color:var(--muted);font-size:15px;font-weight:500}
 #panel .peak-deg{font-size:15px;font-weight:700;color:var(--amber);font-variant-numeric:tabular-nums;white-space:nowrap}
-#panel .meter-row{display:flex;align-items:center;gap:10px;margin-top:8px}
+#panel .meter-row{display:flex;align-items:center;gap:10px;margin-top:6px}
 #panel .meter-row .lbl{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
 .meter{flex:1;height:6px;border-radius:6px;background:rgba(120,220,255,.1);overflow:hidden}
 .meter>div{height:100%;width:0%;border-radius:6px;transition:width .12s linear}
@@ -273,7 +273,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
 /* action bar */
 #actions{display:flex;gap:9px;width:calc(100% - 28px);max-width:430px;margin-top:10px}
 .btn-ghost{
-  flex:1;padding:13px 8px;border-radius:14px;border:1px solid var(--stroke);
+  flex:1;padding:11px 6px;border-radius:14px;border:1px solid var(--stroke);
   background:rgba(120,220,255,.07);color:var(--text);
   font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;
   display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .15s;
@@ -867,17 +867,18 @@ function drawHisto(db,dh){
 function drawEstArrow(){
   const est=finalEst();
   if(est==null){ peakG.innerHTML=''; return; }
-  const [ox,oy]=pol(202,est),[ix,iy]=pol(HISTO_R0+6,est);
+  const [ox,oy]=pol(204,est),[ix,iy]=pol(HISTO_R0+6,est);
   const rad=(est-90)*Math.PI/180+Math.PI;
-  const h1=rad+2.55,h2=rad-2.55;
+  const h1=rad+2.5,h2=rad-2.5;
   peakG.innerHTML=`
     <line x1="${ox.toFixed(1)}" y1="${oy.toFixed(1)}" x2="${ix.toFixed(1)}" y2="${iy.toFixed(1)}"
-      stroke="#3b82f6" stroke-width="4.5" stroke-linecap="round" opacity=".95"
-      style="filter:drop-shadow(0 0 10px rgba(59,130,246,1))"/>
+      stroke="#0a84ff" stroke-width="7" stroke-linecap="round"
+      style="filter:drop-shadow(0 0 14px rgba(10,132,255,1)) drop-shadow(0 0 4px rgba(160,215,255,.9))"/>
     <path d="M ${ix.toFixed(1)} ${iy.toFixed(1)}
-      L ${(ix+19*Math.cos(h1)).toFixed(1)} ${(iy+19*Math.sin(h1)).toFixed(1)}
-      L ${(ix+19*Math.cos(h2)).toFixed(1)} ${(iy+19*Math.sin(h2)).toFixed(1)} Z"
-      fill="#60a5fa" style="filter:drop-shadow(0 0 10px rgba(59,130,246,1))"/>`;
+      L ${(ix+26*Math.cos(h1)).toFixed(1)} ${(iy+26*Math.sin(h1)).toFixed(1)}
+      L ${(ix+26*Math.cos(h2)).toFixed(1)} ${(iy+26*Math.sin(h2)).toFixed(1)} Z"
+      fill="#0a84ff" stroke="#8ecbff" stroke-width="1.5"
+      style="filter:drop-shadow(0 0 14px rgba(10,132,255,1))"/>`;
 }
 
 /* =====================================================================
@@ -1100,7 +1101,7 @@ function loopBody(now){
       $('btnSave').disabled=false;
       $('btnFine').disabled=false;
     } else {
-      $('peakName').textContent='In ascolto…';
+      $('peakName').textContent=S.laps===0?'Completa il 1° giro…':'In ascolto…';
       $('peakName').classList.add('idle');
       $('peakName').style.fontSize='';
       $('peakDeg').textContent='';
@@ -1145,14 +1146,18 @@ function loopBody(now){
     const box=$('compassBox');
     box.classList.remove('pulse'); void box.offsetWidth; box.classList.add('pulse');
     if(navigator.vibrate) navigator.vibrate([40,60,40]);
+    if(S.laps===1) toast('Tocca la rosa su un angolo per il fine tuning ristretto',3800);
   }
 }
 
-/* final estimate: fine tuning wins, else mean of lap directions, else live peak */
+/* Final estimate: fine tuning wins, else the circular mean of completed
+   laps. No estimate before the first full lap — showing the live peak
+   immediately produced false alarms (e.g. "Tramontana" at startup from
+   the few bins around wherever the phone happened to point). */
 function finalEst(){
   if(S.fineDeg!=null) return S.fineDeg;
   if(S.lapDirs.length) return circMean(S.lapDirs);
-  return S.peakDeg;
+  return null;
 }
 
 /* =====================================================================
@@ -1160,13 +1165,14 @@ function finalEst(){
    ±20° window sampled in 2° steps refines the estimate to a few degrees.
 ===================================================================== */
 const FINE_HALF=15, FINE_STEP=1.5, FINE_N=FINE_HALF*2/FINE_STEP+1;
-function startFine(){
-  const target=finalEst(); if(target==null) return;
+function startFine(targetArg){
+  const target=targetArg!=null?targetArg:finalEst();
+  if(target==null){ toast('Prima completa un giro (o tocca la rosa su un angolo)'); return; }
   S.fine={target, bins:new Float32Array(FINE_N), hits:new Uint8Array(FINE_N), t0:performance.now()};
   $('btnFine').classList.add('active');
   $('fineHud').classList.remove('hidden');
   $('calOverlay').classList.add('hidden');
-  setStatus('Fine tuning · punta il vento',false);
+  setStatus(`Fine tuning su ${Math.round(target)}° ±${FINE_HALF}°`,false);
 }
 function stopFine(){
   S.fine=null;
@@ -1254,6 +1260,18 @@ $('settingsClose').addEventListener('click',()=>openSettings(false));
 $('settingsDone').addEventListener('click',()=>openSettings(false));
 $('sheetBg').addEventListener('click',()=>openSettings(false));
 $('btnFine').addEventListener('click',()=>{ S.fine?stopFine():startFine(); });
+
+/* tap the rose on any bearing → fine-tune around that narrow angle */
+$('compassSvg').addEventListener('click',e=>{
+  if(!S.running||S.phase!=='scan'||S.fine) return;
+  const r=$('compassSvg').getBoundingClientRect();
+  const x=e.clientX-r.left-r.width/2, y=e.clientY-r.top-r.height/2;
+  if(Math.hypot(x,y)<r.width*0.13) return; // ignore taps on the centre HUD
+  const screenA=norm(Math.atan2(x,-y)*180/Math.PI);
+  const world=norm(screenA+(S.smHeading||0));
+  startFine(world);
+  toast(`Fine tuning sull'angolo ${Math.round(world)}° ±${FINE_HALF}°`,2400);
+});
 
 /* on-demand estimate: flash the wind name + bearing and speak it aloud */
 function flashResult(title,text,ms=3200){
