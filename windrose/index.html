@@ -79,14 +79,32 @@ html,body{
   background:linear-gradient(135deg,#fff 20%,var(--cyan) 80%);
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 .subtitle{margin-top:14px;font-size:14px;color:var(--muted);text-align:center;max-width:305px;line-height:1.55}
-.compass-splash{position:relative;width:170px;height:170px;margin:36px 0}
+.compass-splash{position:relative;width:128px;height:128px;margin:22px 0}
 .compass-splash .ring{position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(34,211,238,.35);animation:ringPulse 2.6s ease-in-out infinite}
 .compass-splash .ring:nth-child(2){inset:17px;animation-delay:.4s;border-color:rgba(45,212,191,.28)}
 .compass-splash .ring:nth-child(3){inset:34px;animation-delay:.8s;border-color:rgba(34,211,238,.2)}
 @keyframes ringPulse{0%,100%{transform:scale(1);opacity:.55}50%{transform:scale(1.06);opacity:1}}
 .compass-splash .needle-wrap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;animation:needleSway 5s ease-in-out infinite}
 @keyframes needleSway{0%,100%{transform:rotate(-16deg)}50%{transform:rotate(22deg)}}
-.compass-splash i{font-size:58px;color:var(--cyan);text-shadow:0 0 24px rgba(34,211,238,.8)}
+.compass-splash i{font-size:44px;color:var(--cyan);text-shadow:0 0 24px rgba(34,211,238,.8)}
+
+/* settings sheet */
+#settings{width:calc(100% - 28px);max-width:430px;margin-top:9px;padding:13px 16px;display:none}
+#settings.open{display:block}
+.set-row{display:flex;align-items:center;gap:12px;padding:7px 0}
+.set-lbl{flex:1;font-size:12px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:9px;white-space:nowrap}
+.set-lbl i{color:var(--cyan);width:16px;text-align:center}
+.set-val{font-size:11.5px;font-weight:700;color:var(--teal);min-width:36px;text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{-webkit-appearance:none;appearance:none;width:120px;height:5px;border-radius:5px;
+  background:rgba(120,220,255,.18);outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;border-radius:50%;
+  background:linear-gradient(135deg,var(--cyan),var(--teal));box-shadow:0 0 10px rgba(34,211,238,.8);cursor:pointer}
+.switch{position:relative;width:46px;height:26px;border-radius:999px;border:1px solid var(--stroke);
+  background:rgba(120,220,255,.12);cursor:pointer;transition:background .25s;flex:none;padding:0}
+.switch::after{content:'';position:absolute;left:3px;top:2.5px;width:19px;height:19px;border-radius:50%;
+  background:#8fb6c9;transition:all .25s}
+.switch.on{background:linear-gradient(135deg,rgba(34,211,238,.5),rgba(45,212,191,.5))}
+.switch.on::after{left:22px;background:#fff;box-shadow:0 0 8px rgba(34,211,238,.9)}
 .btn-primary{
   display:flex;align-items:center;gap:12px;
   padding:17px 34px;border:none;border-radius:999px;
@@ -193,6 +211,7 @@ html,body{
 .meter>div{height:100%;width:0%;border-radius:6px;transition:width .12s linear}
 #rmsFill{background:linear-gradient(90deg,var(--cyan),var(--teal));box-shadow:0 0 8px rgba(34,211,238,.8)}
 #covFill{background:linear-gradient(90deg,var(--teal),var(--amber));box-shadow:0 0 8px rgba(45,212,191,.7)}
+#precFill{background:linear-gradient(90deg,var(--amber),var(--teal));box-shadow:0 0 8px rgba(251,191,36,.6)}
 #panel .pct{font-size:11px;font-weight:700;color:var(--teal);font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
 
 /* action bar */
@@ -304,13 +323,30 @@ html,body{
         <span class="pct" id="covTxt">0%</span>
       </div>
       <div class="meter-row">
-        <span class="lbl">Giri completati (media)</span>
-        <div style="flex:1"></div>
-        <span class="pct" id="lapsTxt">0</span>
+        <span class="lbl">Precisione (giri: <span id="lapsTxt">0</span>)</span>
+        <div class="meter"><div id="precFill"></div></div>
+        <span class="pct" id="precTxt">—</span>
+      </div>
+    </div>
+
+    <div id="settings" class="glass">
+      <div class="set-row">
+        <span class="set-lbl"><i class="fa-solid fa-microphone-lines"></i> Sensibilità mic</span>
+        <input type="range" id="sensSlider" min="0.5" max="4" step="0.1" value="1.5">
+        <span class="set-val" id="sensVal">1.5×</span>
+      </div>
+      <div class="set-row">
+        <span class="set-lbl"><i class="fa-solid fa-water"></i> Filtro rumore mare</span>
+        <button class="switch" id="seaSw" aria-label="Filtro mare"></button>
+      </div>
+      <div class="set-row">
+        <span class="set-lbl"><i class="fa-solid fa-compass"></i> Venti secondari</span>
+        <button class="switch" id="secSw" aria-label="Venti secondari"></button>
       </div>
     </div>
 
     <div id="actions">
+      <button class="btn-ghost" id="btnSettings" style="flex:0 0 54px" aria-label="Impostazioni"><i class="fa-solid fa-sliders"></i></button>
       <button class="btn-ghost" id="btnReset"><i class="fa-solid fa-rotate-left"></i> Reset</button>
       <button class="btn-ghost" id="btnHistory"><i class="fa-solid fa-clock-rotate-left"></i> Storico</button>
       <button class="btn-ghost accent" id="btnSave" disabled><i class="fa-solid fa-floppy-disk"></i> Salva</button>
@@ -333,7 +369,7 @@ html,body{
   <div class="stage" id="stage-welcome">
     <div class="brand">WindRose · Instrument</div>
     <h1 class="title">Rosa dei Venti<br>Acustica</h1>
-    <p class="subtitle">Tieni l'iPhone orizzontale e ruota su te stesso di 360°: la bussola resta puntata a Nord e l'istogramma circolare rivela da dove arriva il vento.</p>
+    <p class="subtitle">iPhone in piano, ruota di 360°: l'istogramma circolare rivela da dove arriva il vento. Più giri fai, più è preciso.</p>
     <div class="compass-splash">
       <div class="ring"></div><div class="ring"></div><div class="ring"></div>
       <div class="needle-wrap"><i class="fa-regular fa-compass"></i></div>
@@ -369,10 +405,21 @@ const WINDS = [
   {name:'Ostro',      dir:'S'}, {name:'Libeccio', dir:'SW'},
   {name:'Ponente',    dir:'W'}, {name:'Maestrale', dir:'NW'},
 ];
+const WINDS16 = ['Tramontana','Greco-Tramontana','Grecale','Greco-Levante','Levante',
+  'Levante-Scirocco','Scirocco','Ostro-Scirocco','Ostro','Ostro-Libeccio','Libeccio',
+  'Libeccio-Ponente','Ponente','Ponente-Maestro','Maestrale','Maestro-Tramontana'];
 const CARDINALS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
 const norm = d => ((d % 360) + 360) % 360;
-const windFor = deg => WINDS[Math.round(norm(deg)/45) % 8];
+const windFor = deg => SET.sec
+  ? {name:WINDS16[Math.round(norm(deg)/22.5) % 16]}
+  : WINDS[Math.round(norm(deg)/45) % 8];
 const cardFor = deg => CARDINALS[Math.round(norm(deg)/22.5) % 16];
+
+/* ---------- User settings (persisted) ---------- */
+const SET_KEY='windrose_set_v1';
+const SET={sens:1.5, sea:false, sec:false};
+try{ Object.assign(SET, JSON.parse(localStorage.getItem(SET_KEY))||{}); }catch(e){}
+const persistSet=()=>localStorage.setItem(SET_KEY,JSON.stringify(SET));
 
 /* ---------- Tunables ---------- */
 const NUM_BINS = 72, BIN_DEG = 5;
@@ -474,22 +521,48 @@ async function startMic(){
     const ctx=new Ctx();
     if(ctx.state==='suspended') await ctx.resume();
     const src=ctx.createMediaStreamSource(stream);
-    // band-pass 20–250 Hz: wind rumble in, voices/hiss out
-    const hp=ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=20;  hp.Q.value=.7;
-    const lp=ctx.createBiquadFilter(); lp.type='lowpass';  lp.frequency.value=250; lp.Q.value=.8;
-    const analyser=ctx.createAnalyser(); analyser.fftSize=2048; analyser.smoothingTimeConstant=.5;
-    src.connect(hp); hp.connect(lp); lp.connect(analyser);
-    S.audio={ctx,analyser,data:new Float32Array(analyser.fftSize)};
+    // spectral analysis (fftSize 4096 ≈ 11.7 Hz/bin @48 kHz): the wind EQ
+    // curve and the sea-noise reference band are computed per frame in JS
+    const analyser=ctx.createAnalyser(); analyser.fftSize=4096; analyser.smoothingTimeConstant=.5;
+    src.connect(analyser);
+    S.audio={ctx,analyser,freq:new Float32Array(analyser.frequencyBinCount)};
     $('permMic').classList.add('ok');
     return true;
   }catch(e){ toast('⚠️ Microfono negato: impossibile analizzare il vento'); return false; }
 }
-function readRMS(){
+
+/* ---------- Wind acoustics EQ ----------
+   Wind on a mic port is low-frequency rumble: full weight 40–150 Hz,
+   tapered 20–40 and 150–250 Hz, zero elsewhere (speech/hiss rejected).
+   Sea/surf noise is broadband higher up: its 500–2000 Hz energy is used
+   as a reference and subtracted from the wind estimate when enabled. */
+const EQ={windLo:20,windHi:250,emphLo:40,emphHi:150,seaLo:500,seaHi:2000,seaK:0.8};
+function eqWeight(f){
+  if(f<EQ.windLo||f>EQ.windHi) return 0;
+  if(f<EQ.emphLo) return (f-EQ.windLo)/(EQ.emphLo-EQ.windLo);
+  if(f>EQ.emphHi) return 1-0.8*(f-EQ.emphHi)/(EQ.windHi-EQ.emphHi);
+  return 1;
+}
+function bandPower(freq,hzPerBin,lo,hi,weighted){
+  let p=0,n=0;
+  const i0=Math.max(1,Math.floor(lo/hzPerBin)), i1=Math.min(freq.length-1,Math.ceil(hi/hzPerBin));
+  for(let i=i0;i<=i1;i++){
+    const db=freq[i];
+    if(!isFinite(db)) continue;
+    const w=weighted?eqWeight(i*hzPerBin):1;
+    p+=w*Math.pow(10,db/10); n++;
+  }
+  return n?p/n:0;
+}
+function readLevel(){
   if(S.demo) return demoRMS();
   const a=S.audio; if(!a.analyser) return 0;
-  a.analyser.getFloatTimeDomainData(a.data);
-  let s=0; for(let i=0;i<a.data.length;i++) s+=a.data[i]*a.data[i];
-  return Math.sqrt(s/a.data.length);
+  a.analyser.getFloatFrequencyData(a.freq);
+  const hzPerBin=a.ctx.sampleRate/a.analyser.fftSize;
+  const wind=Math.sqrt(bandPower(a.freq,hzPerBin,EQ.windLo,EQ.windHi,true));
+  if(!SET.sea) return wind;
+  const sea=Math.sqrt(bandPower(a.freq,hzPerBin,EQ.seaLo,EQ.seaHi,false));
+  return Math.max(0,wind-EQ.seaK*sea);
 }
 
 /* ---------- Demo mode (no sensors: desktop preview) ---------- */
@@ -508,7 +581,7 @@ function demoRMS(){
 /* =====================================================================
    COMPASS SVG — built once; rose layer counter-rotates every frame
 ===================================================================== */
-let roseG, histoG, covG, peakG, covSegs=[];
+let roseG, histoG, covG, peakG, secG, covSegs=[];
 function mk(t,a){const el=document.createElementNS(NS,t);for(const k in a)el.setAttribute(k,a[k]);return el;}
 function pol(r,deg){const rad=(deg-90)*Math.PI/180;return [CX+r*Math.cos(rad),CY+r*Math.sin(rad)];}
 
@@ -568,10 +641,11 @@ function buildCompass(){
     t.textContent=['N','NE','E','SE','S','SW','W','NW'][i];
     roseG.appendChild(t);
   }
-  // north needle on the rose
+  // red north needle on the rose
   const [nx,ny]=pol(124,0);
-  roseG.appendChild(mk('path',{d:`M ${CX-7} ${CY-HISTO_R0+4} L ${CX} ${ny} L ${CX+7} ${CY-HISTO_R0+4} Z`,
-    fill:'rgba(251,191,36,.35)',stroke:'rgba(251,191,36,.7)','stroke-width':1}));
+  roseG.appendChild(mk('path',{d:`M ${CX-8} ${CY-HISTO_R0+4} L ${CX} ${ny} L ${CX+8} ${CY-HISTO_R0+4} Z`,
+    fill:'#ef4444',stroke:'#fca5a5','stroke-width':1,
+    style:'filter:drop-shadow(0 0 9px rgba(239,68,68,.95))'}));
 
   // circular histogram + peak marker live in the world layer
   histoG=mk('g',{}); roseG.appendChild(histoG);
@@ -591,6 +665,22 @@ function buildCompass(){
     roseG.appendChild(t);
   }
 
+  // secondary (quarter) winds, shown only when enabled in settings
+  secG=mk('g',{});
+  const SEC=['GRECO-TRAMONTANA','GRECO-LEVANTE','LEVANTE-SCIROCCO','OSTRO-SCIROCCO',
+             'OSTRO-LIBECCIO','LIBECCIO-PONENTE','PONENTE-MAESTRO','MAESTRO-TRAMONTANA'];
+  for(let i=0;i<8;i++){
+    const a=22.5+i*45,[tx,ty]=pol(150,a);
+    const t=mk('text',{x:tx,y:ty,fill:'rgba(140,200,225,.65)',
+      'font-size':6.2,'font-weight':700,'letter-spacing':'.1em',
+      'text-anchor':'middle','dominant-baseline':'central','font-family':'Inter',
+      transform:`rotate(${a} ${tx} ${ty})`});
+    t.textContent=SEC[i];
+    secG.appendChild(t);
+  }
+  secG.style.display=SET.sec?'':'none';
+  roseG.appendChild(secG);
+
   /* ---- fixed device marker (lubber line): where the PHONE points ---- */
   const lub=mk('g',{style:'filter:drop-shadow(0 0 8px rgba(34,211,238,.9))'});
   lub.appendChild(mk('path',{d:`M ${CX-11} ${CY-227} L ${CX} ${CY-204} L ${CX+11} ${CY-227} Z`,fill:'#22d3ee'}));
@@ -598,13 +688,18 @@ function buildCompass(){
   svg.appendChild(lub);
 }
 
-/* averaged view: per-bin mean over completed laps + the lap in progress */
+/* averaged view: per-bin mean over completed laps + the lap in progress.
+   Mic sensitivity scales the averaged values, so raising it "activates"
+   histogram bars (and the peak) that would otherwise sit below threshold. */
+const MIN_SIG=0.0015;
 function displayBins(){
   const db=new Float32Array(NUM_BINS), dh=new Uint8Array(NUM_BINS);
   for(let i=0;i<NUM_BINS;i++){
     const n=S.accCnt[i]+(S.curHits[i]?1:0);
     if(!n) continue;
-    db[i]=(S.accSum[i]+S.curBins[i])/n; dh[i]=1;
+    const v=((S.accSum[i]+S.curBins[i])/n)*SET.sens;
+    if(v<=MIN_SIG) continue;
+    db[i]=v; dh[i]=1;
   }
   return {db,dh};
 }
@@ -665,7 +760,7 @@ function computePeak(db,dh){
     sm[i]=w?acc/w:0;
   }
   let p=0; for(let i=1;i<NUM_BINS;i++) if(sm[i]>sm[p]) p=i;
-  if(sm[p]<=0.0015) return null; // nothing above the noise floor yet
+  if(sm[p]<=MIN_SIG) return null; // nothing above the noise floor yet
   let sx=0,sy=0;
   for(let k=-4;k<=4;k++){
     const j=(p+k+NUM_BINS)%NUM_BINS;
@@ -715,6 +810,14 @@ function resetScan(){
   if(histoG){histoG.innerHTML='';peakG.innerHTML='';}
   $('covFill').style.width='0%'; $('covTxt').textContent='0%';
   $('lapsTxt').textContent='0';
+  updatePrecision();
+}
+
+/* more laps → tighter average → higher confidence */
+function updatePrecision(){
+  const lvl=['—','bassa','media','buona','alta'][Math.min(S.laps,4)];
+  $('precTxt').textContent=lvl;
+  $('precFill').style.width=Math.min(S.laps/4,1)*100+'%';
 }
 
 function resetLapRing(){
@@ -734,7 +837,7 @@ function loop(now){
   if(!S.running) return;
   if(S.demo) demoTick(now);
 
-  const rms=readRMS();
+  const rms=readLevel();
 
   /* ---- display-smoothed heading (shortest-path easing) ---- */
   if(S.heading!=null){
@@ -798,7 +901,7 @@ function loop(now){
   }
 
   const excess=Math.max(0,rms-S.noiseFloor);
-  $('rmsFill').style.width=Math.min(excess*900,100)+'%';
+  $('rmsFill').style.width=Math.min(excess*SET.sens*900,100)+'%';
 
   if(S.heading!=null){
     const bin=Math.floor(norm(S.heading)/BIN_DEG)%NUM_BINS;
@@ -829,10 +932,18 @@ function loop(now){
     drawHisto(db,dh);
     if(S.peakDeg!=null){
       const w=windFor(S.peakDeg);
-      $('peakName').textContent=w.name;
-      $('peakName').classList.remove('idle');
+      const el=$('peakName');
+      el.textContent=w.name;
+      el.style.fontSize=w.name.length>12?'19px':'27px';
+      el.classList.remove('idle');
       $('peakDeg').textContent=Math.round(S.peakDeg)+'° '+cardFor(S.peakDeg);
       $('btnSave').disabled=false;
+    } else {
+      $('peakName').textContent='In ascolto…';
+      $('peakName').classList.add('idle');
+      $('peakName').style.fontSize='';
+      $('peakDeg').textContent='';
+      $('btnSave').disabled=true;
     }
   }
 
@@ -843,6 +954,7 @@ function loop(now){
     }
     S.laps++;
     $('lapsTxt').textContent=S.laps;
+    updatePrecision();
     resetLapRing();
     setStatus(`Giro ${S.laps} completo · continua per affinare`,true);
     const box=$('compassBox');
@@ -875,6 +987,38 @@ $('btnStart').addEventListener('click',async ()=>{
 $('btnDemo').addEventListener('click',()=>{ toast('Demo: sensori simulati',2500); beginSession(true); });
 
 $('btnReset').addEventListener('click',()=>resetScan());
+$('btnSettings').addEventListener('click',()=>$('settings').classList.toggle('open'));
+
+/* ---- settings controls ---- */
+function initSettings(){
+  $('sensSlider').value=SET.sens;
+  $('sensVal').textContent=SET.sens.toFixed(1)+'×';
+  $('seaSw').classList.toggle('on',SET.sea);
+  $('secSw').classList.toggle('on',SET.sec);
+}
+$('sensSlider').addEventListener('input',e=>{
+  SET.sens=parseFloat(e.target.value);
+  $('sensVal').textContent=SET.sens.toFixed(1)+'×';
+  persistSet();
+});
+$('seaSw').addEventListener('click',()=>{
+  SET.sea=!SET.sea;
+  $('seaSw').classList.toggle('on',SET.sea);
+  persistSet();
+  // the level metric changes → re-measure the noise floor (data is kept)
+  if(S.running && calibrated && !S.demo){
+    S.phase='cal'; calT0=performance.now(); calSamples=[];
+    $('calOverlay').classList.remove('hidden');
+    setStatus('Ricalibrazione',false);
+  }
+  toast(SET.sea?'Filtro mare attivo: energia 0.5–2 kHz sottratta':'Filtro mare disattivato',2600);
+});
+$('secSw').addEventListener('click',()=>{
+  SET.sec=!SET.sec;
+  $('secSw').classList.toggle('on',SET.sec);
+  persistSet();
+  if(secG) secG.style.display=SET.sec?'':'none';
+});
 $('btnHistory').addEventListener('click',()=>$('drawer').classList.toggle('open'));
 $('btnSave').addEventListener('click',()=>{
   if(S.peakDeg==null) return;
@@ -935,6 +1079,7 @@ $('clearLog').addEventListener('click',()=>{
 ===================================================================== */
 initMap();
 renderLog();
+initSettings();
 document.addEventListener('touchmove',e=>{
   if(!e.target.closest('#logList')) e.preventDefault();
 },{passive:false});
