@@ -7,6 +7,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#060a12">
 <title>WindRose — Acoustic Wind Finder</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%23060a12' stroke='%2322d3ee' stroke-width='6'/><path d='M50 12 L59 50 L41 50 Z' fill='%23ef4444'/><path d='M50 88 L59 50 L41 50 Z' fill='%23e6f6ff'/></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%23060a12' stroke='%2322d3ee' stroke-width='6'/><path d='M50 12 L59 50 L41 50 Z' fill='%23ef4444'/><path d='M50 88 L59 50 L41 50 Z' fill='%23e6f6ff'/></svg>">
 
 <!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -101,6 +103,9 @@ html,body{
   padding:14px 20px calc(18px + env(safe-area-inset-bottom));
 }
 #settings.open{transform:translateY(0)}
+#sheetBg{position:absolute;inset:0;z-index:45;background:rgba(2,5,10,.45);
+  opacity:0;pointer-events:none;transition:opacity .35s}
+#sheetBg.show{opacity:1;pointer-events:auto}
 #settings .sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
 #settings .sheet-head .t{font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--muted);display:flex;gap:9px;align-items:center}
 #settings .sheet-head .t i{color:var(--cyan)}
@@ -179,8 +184,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
 #instrument.on{opacity:1;visibility:visible}
 
 .status-chip{
-  margin-top:2px;padding:9px 20px;display:flex;align-items:center;gap:10px;
-  font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--cyan);
+  margin-top:0;padding:7px 16px;display:flex;align-items:center;gap:9px;
+  font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--cyan);
   border-radius:999px;
 }
 .status-chip .dot{width:8px;height:8px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px var(--cyan);animation:blink 1s ease-in-out infinite}
@@ -367,9 +372,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
           <div class="peak-label">Vento da (media giri)</div>
           <div class="peak-name idle" id="peakName">In ascolto…</div>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
           <div class="peak-deg" id="peakDeg"></div>
-          <button class="btn-mini" id="btnFine" disabled><i class="fa-solid fa-crosshairs"></i> Fine tuning</button>
+          <div style="display:flex;gap:6px">
+            <button class="btn-mini" id="btnFine" disabled><i class="fa-solid fa-crosshairs"></i> Fine</button>
+            <button class="btn-mini" id="btnAsk" style="border-color:rgba(59,130,246,.55);color:#93c5fd;background:rgba(59,130,246,.14)"><i class="fa-solid fa-bullhorn"></i> Che vento è?</button>
+          </div>
         </div>
       </div>
       <div class="meter-row">
@@ -389,7 +397,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
     </div>
 
     <div id="actions">
-      <button class="btn-ghost" id="btnSettings" style="flex:0 0 54px" aria-label="Impostazioni"><i class="fa-solid fa-sliders"></i></button>
+      <button class="btn-ghost" id="btnSettings" aria-label="Impostazioni"><i class="fa-solid fa-gear"></i> Setup</button>
       <button class="btn-ghost" id="btnReset"><i class="fa-solid fa-rotate-left"></i> Reset</button>
       <button class="btn-ghost" id="btnHistory"><i class="fa-solid fa-clock-rotate-left"></i> Storico</button>
       <button class="btn-ghost accent" id="btnSave" disabled><i class="fa-solid fa-floppy-disk"></i> Salva</button>
@@ -397,6 +405,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
   </div>
 
   <!-- ===== SETTINGS SHEET ===== -->
+  <div id="sheetBg"></div>
   <div id="settings">
     <div class="sheet-head">
       <div class="t"><i class="fa-solid fa-sliders"></i> Impostazioni</div>
@@ -404,7 +413,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
     </div>
     <div class="set-row">
       <span class="set-lbl"><i class="fa-solid fa-microphone-lines"></i> Sensibilità mic</span>
-      <input type="range" id="sensSlider" min="0.5" max="4" step="0.1" value="1.5">
+      <input type="range" id="sensSlider" min="0.5" max="6" step="0.1" value="2.5">
       <span class="set-val" id="sensVal">1.5×</span>
     </div>
     <div class="set-row">
@@ -420,6 +429,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
       <span class="set-val" id="micName" style="min-width:0;max-width:55%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">predefinito</span>
     </div>
     <div class="set-note">L'app usa il <b>microfono inferiore</b> (accanto alla porta USB) quando il sistema lo espone; in ogni caso è quello il punto di misura: tieni libera la griglia in basso e non coprirla con le dita.</div>
+    <button class="btn-ghost accent" id="settingsDone" style="width:100%;margin-top:12px"><i class="fa-solid fa-check"></i> Torna all'app</button>
   </div>
 
   <!-- ===== HISTORY DRAWER ===== -->
@@ -505,7 +515,7 @@ function circSpreadDeg(arr){ // angular std dev of lap directions
 
 /* ---------- User settings (persisted) ---------- */
 const SET_KEY='windrose_set_v1';
-const SET={sens:1.5, sea:false, sec:false};
+const SET={sens:2.5, sea:false, sec:false};
 try{ Object.assign(SET, JSON.parse(localStorage.getItem(SET_KEY))||{}); }catch(e){}
 const persistSet=()=>localStorage.setItem(SET_KEY,JSON.stringify(SET));
 
@@ -651,7 +661,7 @@ async function pickBottomMic(currentStream){
    tapered 20–40 and 150–250 Hz, zero elsewhere (speech/hiss rejected).
    Sea/surf noise is broadband higher up: its 500–2000 Hz energy is used
    as a reference and subtracted from the wind estimate when enabled. */
-const EQ={windLo:20,windHi:250,emphLo:40,emphHi:150,seaLo:500,seaHi:2000,seaK:0.8};
+const EQ={windLo:20,windHi:250,emphLo:40,emphHi:150,seaLo:500,seaHi:2000,seaK:0.5};
 function eqWeight(f){
   if(f<EQ.windLo||f>EQ.windHi) return 0;
   if(f<EQ.emphLo) return (f-EQ.windLo)/(EQ.emphLo-EQ.windLo);
@@ -803,10 +813,13 @@ function buildCompass(){
   svg.appendChild(lub);
 }
 
-/* averaged view: per-bin mean over completed laps + the lap in progress.
+/* All wind levels are RATIOS relative to the calibrated noise floor
+   ((level-floor)/floor): scale-invariant, so histogram bars appear the
+   same way whatever the absolute gain of the microphone in use.
    Mic sensitivity scales the averaged values, so raising it "activates"
    histogram bars (and the peak) that would otherwise sit below threshold. */
-const MIN_SIG=0.0015;
+const MIN_SIG=0.05; // 5% above the noise floor
+const excessRatio=lvl=>Math.max(0,lvl-S.noiseFloor)/Math.max(S.noiseFloor,1e-9);
 function displayBins(){
   const db=new Float32Array(NUM_BINS), dh=new Uint8Array(NUM_BINS);
   for(let i=0;i<NUM_BINS;i++){
@@ -823,10 +836,10 @@ function displayBins(){
 function drawHisto(db,dh){
   let max=0;
   for(let i=0;i<NUM_BINS;i++) if(db[i]>max) max=db[i];
-  if(max<=0){ histoG.innerHTML=''; peakG.innerHTML=''; return; }
+  if(max<=0){ histoG.innerHTML=''; drawEstArrow(); return; }
   // absolute floor on the normaliser: raising mic sensitivity makes the
   // bars visibly grow (until saturation) instead of only re-normalising
-  const denom=Math.max(max,0.03);
+  const denom=Math.max(max,0.8);
 
   const peakBin = S.peakDeg==null ? -1 : Math.floor(norm(S.peakDeg)/BIN_DEG)%NUM_BINS;
   let html='';
@@ -846,20 +859,25 @@ function drawHisto(db,dh){
   }
   histoG.innerHTML=html;
 
-  // peak arrow: wind blowing FROM peakDeg toward the centre
-  if(S.peakDeg!=null){
-    const [ox,oy]=pol(196,S.peakDeg),[ix,iy]=pol(HISTO_R0+8,S.peakDeg);
-    const rad=(S.peakDeg-90)*Math.PI/180+Math.PI;
-    const h1=rad+2.65,h2=rad-2.65;
-    peakG.innerHTML=`
-      <line x1="${ox.toFixed(1)}" y1="${oy.toFixed(1)}" x2="${ix.toFixed(1)}" y2="${iy.toFixed(1)}"
-        stroke="#fbbf24" stroke-width="3" stroke-linecap="round" stroke-dasharray="2 8"
-        style="filter:drop-shadow(0 0 8px rgba(251,191,36,.9))"/>
-      <path d="M ${ix.toFixed(1)} ${iy.toFixed(1)}
-        L ${(ix+15*Math.cos(h1)).toFixed(1)} ${(iy+15*Math.sin(h1)).toFixed(1)}
-        L ${(ix+15*Math.cos(h2)).toFixed(1)} ${(iy+15*Math.sin(h2)).toFixed(1)} Z"
-        fill="#fbbf24" style="filter:drop-shadow(0 0 8px rgba(251,191,36,.9))"/>`;
-  } else peakG.innerHTML='';
+  drawEstArrow();
+}
+
+/* solid BLUE arrow: the official estimated incoming wind direction
+   (circular mean of laps, refined by fine tuning), blowing to centre */
+function drawEstArrow(){
+  const est=finalEst();
+  if(est==null){ peakG.innerHTML=''; return; }
+  const [ox,oy]=pol(202,est),[ix,iy]=pol(HISTO_R0+6,est);
+  const rad=(est-90)*Math.PI/180+Math.PI;
+  const h1=rad+2.55,h2=rad-2.55;
+  peakG.innerHTML=`
+    <line x1="${ox.toFixed(1)}" y1="${oy.toFixed(1)}" x2="${ix.toFixed(1)}" y2="${iy.toFixed(1)}"
+      stroke="#3b82f6" stroke-width="4.5" stroke-linecap="round" opacity=".95"
+      style="filter:drop-shadow(0 0 10px rgba(59,130,246,1))"/>
+    <path d="M ${ix.toFixed(1)} ${iy.toFixed(1)}
+      L ${(ix+19*Math.cos(h1)).toFixed(1)} ${(iy+19*Math.sin(h1)).toFixed(1)}
+      L ${(ix+19*Math.cos(h2)).toFixed(1)} ${(iy+19*Math.sin(h2)).toFixed(1)} Z"
+      fill="#60a5fa" style="filter:drop-shadow(0 0 10px rgba(59,130,246,1))"/>`;
 }
 
 /* =====================================================================
@@ -907,8 +925,21 @@ function beginSession(demo){
   $('instrument').classList.add('on');
   buildCompass();
   resetScan();
+  keepAwake();
   requestAnimationFrame(loop);
 }
+
+/* ---- stability: keep the screen on and the audio engine alive ---- */
+let wakeLock=null;
+async function keepAwake(){
+  try{ if('wakeLock' in navigator) wakeLock=await navigator.wakeLock.request('screen'); }catch(e){}
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'){
+    if(S.running) keepAwake();
+    if(S.audio&&S.audio.ctx&&S.audio.ctx.state==='suspended') S.audio.ctx.resume().catch(()=>{});
+  }
+});
 
 function resetScan(){
   S.curBins.fill(0); S.curHits.fill(0);
@@ -958,6 +989,10 @@ function updateBubble(){
 
 function loop(now){
   if(!S.running) return;
+  try{ loopBody(now); }catch(e){ /* never let one bad frame kill the instrument */ }
+  requestAnimationFrame(loop);
+}
+function loopBody(now){
   if(S.demo) demoTick(now);
 
   const rms=readLevel();
@@ -993,7 +1028,7 @@ function loop(now){
         }
       }
     } else levelOkSince=null;
-    requestAnimationFrame(loop); return;
+    return;
   }
 
   /* ---- PHASE 2 · noise-floor calibration ---- */
@@ -1009,7 +1044,7 @@ function loop(now){
       $('calOverlay').classList.add('hidden');
       setStatus('Ruota di 360°',false);
     }
-    requestAnimationFrame(loop); return;
+    return;
   }
 
   /* ---- PHASE 3 · live sweep — pause if the phone tilts too much ---- */
@@ -1021,11 +1056,11 @@ function loop(now){
       tiltToastT=now;
       toast('Telefono inclinato: rimettilo in piano per continuare la scansione');
     }
-    requestAnimationFrame(loop); return;
+    return;
   }
 
-  const excess=Math.max(0,rms-S.noiseFloor);
-  $('rmsFill').style.width=Math.min(excess*SET.sens*900,100)+'%';
+  const excess=excessRatio(rms);
+  $('rmsFill').style.width=Math.min(excess*SET.sens*25,100)+'%';
 
   if(S.heading!=null){
     const bin=Math.floor(norm(S.heading)/BIN_DEG)%NUM_BINS;
@@ -1111,8 +1146,6 @@ function loop(now){
     box.classList.remove('pulse'); void box.offsetWidth; box.classList.add('pulse');
     if(navigator.vibrate) navigator.vibrate([40,60,40]);
   }
-
-  requestAnimationFrame(loop);
 }
 
 /* final estimate: fine tuning wins, else mean of lap directions, else live peak */
@@ -1126,7 +1159,7 @@ function finalEst(){
    FINE TUNING — with a direction found, slowly aim the phone at it:
    ±20° window sampled in 2° steps refines the estimate to a few degrees.
 ===================================================================== */
-const FINE_HALF=20, FINE_STEP=2, FINE_N=FINE_HALF*2/FINE_STEP+1;
+const FINE_HALF=15, FINE_STEP=1.5, FINE_N=FINE_HALF*2/FINE_STEP+1;
 function startFine(){
   const target=finalEst(); if(target==null) return;
   S.fine={target, bins:new Float32Array(FINE_N), hits:new Uint8Array(FINE_N), t0:performance.now()};
@@ -1155,8 +1188,7 @@ function fineTick(now){
   $('fineHud').classList.toggle('locked',inWin&&Math.abs(delta)<5);
 
   if(inWin){
-    const rms=S._lastLevel||0;
-    const excess=Math.max(0,rms-S.noiseFloor);
+    const excess=excessRatio(S._lastLevel||0);
     const idx=Math.round((delta+FINE_HALF)/FINE_STEP);
     if(idx>=0&&idx<FINE_N){
       if(excess>F.bins[idx]) F.bins[idx]=excess;
@@ -1213,9 +1245,37 @@ $('btnStart').addEventListener('click',async ()=>{
 $('btnDemo').addEventListener('click',()=>{ toast('Demo: sensori simulati',2500); beginSession(true); });
 
 $('btnReset').addEventListener('click',()=>resetScan());
-$('btnSettings').addEventListener('click',()=>$('settings').classList.toggle('open'));
-$('settingsClose').addEventListener('click',()=>$('settings').classList.remove('open'));
+function openSettings(o){
+  $('settings').classList.toggle('open',o);
+  $('sheetBg').classList.toggle('show',o);
+}
+$('btnSettings').addEventListener('click',()=>openSettings(!$('settings').classList.contains('open')));
+$('settingsClose').addEventListener('click',()=>openSettings(false));
+$('settingsDone').addEventListener('click',()=>openSettings(false));
+$('sheetBg').addEventListener('click',()=>openSettings(false));
 $('btnFine').addEventListener('click',()=>{ S.fine?stopFine():startFine(); });
+
+/* on-demand estimate: flash the wind name + bearing and speak it aloud */
+function flashResult(title,text,ms=3200){
+  $('flLap').textContent=title; $('flWind').textContent=text;
+  const fl=$('lapFlash'); fl.classList.add('show');
+  clearTimeout(fl._t); fl._t=setTimeout(()=>fl.classList.remove('show'),ms);
+}
+function announceWind(){
+  const est=finalEst();
+  if(est==null){ flashResult('Stima vento','ND'); return; }
+  const w=windFor(est);
+  flashResult('Stima vento',`${w.name} · ${Math.round(est)}°`,3800);
+  try{
+    if('speechSynthesis' in window){
+      speechSynthesis.cancel();
+      const u=new SpeechSynthesisUtterance(`${w.name}, ${Math.round(est)} gradi`);
+      u.lang='it-IT'; u.rate=.95;
+      speechSynthesis.speak(u);
+    }
+  }catch(e){}
+}
+$('btnAsk').addEventListener('click',announceWind);
 
 /* ---- settings controls ---- */
 function initSettings(){
