@@ -136,6 +136,29 @@ html,body{
   text-shadow:0 0 20px rgba(34,211,238,.55);font-variant-numeric:tabular-nums}
 .center-hud .card{font-size:11px;letter-spacing:.32em;color:var(--cyan);text-transform:uppercase;margin-top:3px}
 
+/* level-check overlay (bubble level) in the compass center */
+#levelOverlay{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:152px;height:152px;border-radius:50%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;
+  background:rgba(6,12,20,.82);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  border:1px solid rgba(251,191,36,.4);transition:opacity .4s,border-color .3s;z-index:5;
+}
+#levelOverlay.ok{border-color:rgba(45,212,191,.55)}
+#levelOverlay.hidden{opacity:0;pointer-events:none}
+#levelOverlay .bubble{position:relative;width:80px;height:80px;border-radius:50%;
+  border:1.5px solid rgba(120,220,255,.35)}
+#levelOverlay .target{position:absolute;left:50%;top:50%;width:36px;height:36px;
+  transform:translate(-50%,-50%);border-radius:50%;border:1.5px dashed rgba(45,212,191,.55)}
+#levelOverlay .cross{position:absolute;background:rgba(120,220,255,.18)}
+#levelOverlay .cross.h{left:5px;right:5px;top:50%;height:1px}
+#levelOverlay .cross.v{top:5px;bottom:5px;left:50%;width:1px}
+#bubbleDot{position:absolute;left:50%;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;
+  border-radius:50%;background:var(--amber);box-shadow:0 0 12px rgba(251,191,36,.9);
+  transition:background .2s,box-shadow .2s}
+#levelOverlay.ok #bubbleDot{background:var(--teal);box-shadow:0 0 12px rgba(45,212,191,.95)}
+#levelOverlay .l{font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);text-align:center;max-width:120px;line-height:1.5}
+
 /* calibration mini-overlay in the compass center */
 #calOverlay{
   position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
@@ -243,6 +266,14 @@ html,body{
         <div class="deg" id="hudDeg">--°</div>
         <div class="card" id="hudCard">—</div>
       </div>
+      <div id="levelOverlay" class="hidden">
+        <div class="bubble">
+          <div class="cross h"></div><div class="cross v"></div>
+          <div class="target"></div>
+          <div id="bubbleDot"></div>
+        </div>
+        <div class="l">Metti l'iPhone in piano</div>
+      </div>
       <div id="calOverlay" class="hidden">
         <svg viewBox="0 0 142 142">
           <circle cx="71" cy="71" r="66" fill="none" stroke="rgba(120,220,255,.14)" stroke-width="4"/>
@@ -271,6 +302,11 @@ html,body{
         <span class="lbl">Giro 360°</span>
         <div class="meter"><div id="covFill"></div></div>
         <span class="pct" id="covTxt">0%</span>
+      </div>
+      <div class="meter-row">
+        <span class="lbl">Giri completati (media)</span>
+        <div style="flex:1"></div>
+        <span class="pct" id="lapsTxt">0</span>
       </div>
     </div>
 
@@ -341,19 +377,27 @@ const cardFor = deg => CARDINALS[Math.round(norm(deg)/22.5) % 16];
 /* ---------- Tunables ---------- */
 const NUM_BINS = 72, BIN_DEG = 5;
 const CAL_MS = 3000;            // noise-floor calibration window
-const COVERAGE_DONE = 0.85;     // fraction of bins to call the sweep complete
+const COVERAGE_DONE = 0.85;     // fraction of bins to call one lap complete
 const HISTO_R0 = 64;            // histogram inner radius
 const HISTO_R1 = 172;           // histogram max outer radius
 const CX = 220, CY = 220;
+const LEVEL_TOL   = 15;         // ° of pitch/roll accepted as "flat" to start
+const LEVEL_BREAK = 25;         // ° beyond which an ongoing scan pauses
+const LEVEL_HOLD  = 800;        // ms the phone must stay flat before starting
 
 /* ---------- State ---------- */
 const S = {
   running:false, demo:false,
   heading:null, smHeading:null,      // raw + display-smoothed heading
-  calibrating:false, noiseFloor:0,
-  bins:new Float32Array(NUM_BINS),   // peak excess-RMS per world bin
-  hits:new Uint16Array(NUM_BINS),
-  peakDeg:null, complete:false, saved:false,
+  beta:null, gamma:null,             // device tilt (pitch/roll)
+  phase:'level',                     // level → cal → scan
+  noiseFloor:0,
+  curBins:new Float32Array(NUM_BINS),  // peak excess-RMS per bin, current lap
+  curHits:new Uint16Array(NUM_BINS),
+  accSum:new Float32Array(NUM_BINS),   // per-bin sum over completed laps
+  accCnt:new Uint16Array(NUM_BINS),    // per-bin number of laps that covered it
+  laps:0,
+  peakDeg:null,
   lat:null, lon:null,
   audio:{ctx:null, analyser:null, data:null},
   map:null, marker:null,
@@ -400,6 +444,13 @@ function onOrient(e){
   if(typeof e.webkitCompassHeading==='number' && !isNaN(e.webkitCompassHeading)) h=e.webkitCompassHeading;
   else if(e.alpha!=null) h=norm(360-e.alpha);
   if(h!=null){ S.heading=h; }
+  if(e.beta!=null)  S.beta=e.beta;    // front-back tilt
+  if(e.gamma!=null) S.gamma=e.gamma;  // left-right tilt
+}
+function isFlat(tol){
+  if(S.demo) return true;
+  if(S.beta==null || S.gamma==null) return true; // no tilt data → cannot gate
+  return Math.abs(S.beta)<tol && Math.abs(S.gamma)<tol;
 }
 async function startCompass(){
   try{
@@ -518,13 +569,27 @@ function buildCompass(){
     roseG.appendChild(t);
   }
   // north needle on the rose
-  const [nx,ny]=pol(138,0);
+  const [nx,ny]=pol(124,0);
   roseG.appendChild(mk('path',{d:`M ${CX-7} ${CY-HISTO_R0+4} L ${CX} ${ny} L ${CX+7} ${CY-HISTO_R0+4} Z`,
     fill:'rgba(251,191,36,.35)',stroke:'rgba(251,191,36,.7)','stroke-width':1}));
 
   // circular histogram + peak marker live in the world layer
   histoG=mk('g',{}); roseG.appendChild(histoG);
   peakG=mk('g',{}); roseG.appendChild(peakG);
+
+  // small traditional wind names, drawn above the histogram bars
+  const NAMES=['TRAMONTANA','GRECALE','LEVANTE','SCIROCCO','OSTRO','LIBECCIO','PONENTE','MAESTRALE'];
+  for(let i=0;i<8;i++){
+    const a=i*45,[tx,ty]=pol(139,a);
+    const t=mk('text',{x:tx,y:ty,
+      fill:i===0?'rgba(251,191,36,.9)':'rgba(160,220,240,.8)',
+      'font-size':8,'font-weight':700,'letter-spacing':'.14em',
+      'text-anchor':'middle','dominant-baseline':'central','font-family':'Inter',
+      transform:`rotate(${a} ${tx} ${ty})`,
+      style:'text-shadow:0 0 6px rgba(6,10,18,.9)'});
+    t.textContent=NAMES[i];
+    roseG.appendChild(t);
+  }
 
   /* ---- fixed device marker (lubber line): where the PHONE points ---- */
   const lub=mk('g',{style:'filter:drop-shadow(0 0 8px rgba(34,211,238,.9))'});
@@ -533,17 +598,28 @@ function buildCompass(){
   svg.appendChild(lub);
 }
 
+/* averaged view: per-bin mean over completed laps + the lap in progress */
+function displayBins(){
+  const db=new Float32Array(NUM_BINS), dh=new Uint8Array(NUM_BINS);
+  for(let i=0;i<NUM_BINS;i++){
+    const n=S.accCnt[i]+(S.curHits[i]?1:0);
+    if(!n) continue;
+    db[i]=(S.accSum[i]+S.curBins[i])/n; dh[i]=1;
+  }
+  return {db,dh};
+}
+
 /* histogram redraw (~8 fps is plenty) */
-function drawHisto(){
+function drawHisto(db,dh){
   let max=0;
-  for(let i=0;i<NUM_BINS;i++) if(S.bins[i]>max) max=S.bins[i];
+  for(let i=0;i<NUM_BINS;i++) if(db[i]>max) max=db[i];
   if(max<=0){ histoG.innerHTML=''; peakG.innerHTML=''; return; }
 
   const peakBin = S.peakDeg==null ? -1 : Math.floor(norm(S.peakDeg)/BIN_DEG)%NUM_BINS;
   let html='';
   for(let i=0;i<NUM_BINS;i++){
-    if(!S.hits[i]) continue;
-    const f=S.bins[i]/max;
+    if(!dh[i]) continue;
+    const f=db[i]/max;
     const r=HISTO_R0+(HISTO_R1-HISTO_R0)*f;
     const a0=i*BIN_DEG+.8, a1=(i+1)*BIN_DEG-.8;
     const [xo0,yo0]=pol(r,a0),[xo1,yo1]=pol(r,a1);
@@ -576,15 +652,15 @@ function drawHisto(){
 /* =====================================================================
    PEAK DIRECTION — circular smoothing + weighted circular mean
 ===================================================================== */
-function computePeak(){
+function computePeak(db,dh){
   const K=[.15,.4,.8,1,.8,.4,.15];
   const sm=new Float32Array(NUM_BINS);
   for(let i=0;i<NUM_BINS;i++){
     let acc=0,w=0;
     for(let k=-3;k<=3;k++){
       const j=(i+k+NUM_BINS)%NUM_BINS;
-      if(!S.hits[j]) continue;
-      acc+=S.bins[j]*K[k+3]; w+=K[k+3];
+      if(!dh[j]) continue;
+      acc+=db[j]*K[k+3]; w+=K[k+3];
     }
     sm[i]=w?acc/w:0;
   }
@@ -600,9 +676,12 @@ function computePeak(){
 }
 
 /* =====================================================================
-   MAIN LOOP — calibrate 3 s, then live sweep forever (no dead ends)
+   MAIN LOOP — phase machine: level check → 3 s calibration → live sweep.
+   Each completed 360° lap folds into a per-bin running average, then a
+   new lap starts automatically; more laps = cleaner histogram.
 ===================================================================== */
 let calT0=0, calSamples=[], lastHisto=0, compassWarned=false, startT=0;
+let levelOkSince=null, tiltToastT=0, calibrated=false, announcedLap=0;
 
 function setStatus(txt,done){
   $('statusTxt').textContent=txt;
@@ -619,19 +698,36 @@ function beginSession(demo){
 }
 
 function resetScan(){
-  S.bins.fill(0); S.hits.fill(0);
-  S.peakDeg=null; S.complete=false; S.saved=false;
-  S.calibrating=true; calT0=performance.now(); calSamples=[];
+  S.curBins.fill(0); S.curHits.fill(0);
+  S.accSum.fill(0);  S.accCnt.fill(0);
+  S.laps=0; S.peakDeg=null;
+  S.phase='level'; calibrated=false; levelOkSince=null; announcedLap=0;
+  calSamples=[];
   S.demoT0=performance.now();
   startT=performance.now();
   $('btnSave').disabled=true;
-  $('calOverlay').classList.remove('hidden');
+  $('levelOverlay').classList.remove('hidden');
+  $('calOverlay').classList.add('hidden');
   $('peakName').textContent='In ascolto…'; $('peakName').classList.add('idle');
   $('peakDeg').textContent='';
-  setStatus('Calibrazione',false);
+  setStatus('Metti in piano',false);
   covSegs.forEach(s=>{s.setAttribute('stroke','rgba(120,220,255,.14)');s.removeAttribute('style');});
   if(histoG){histoG.innerHTML='';peakG.innerHTML='';}
   $('covFill').style.width='0%'; $('covTxt').textContent='0%';
+  $('lapsTxt').textContent='0';
+}
+
+function resetLapRing(){
+  S.curBins.fill(0); S.curHits.fill(0);
+  covSegs.forEach(s=>{s.setAttribute('stroke','rgba(120,220,255,.14)');s.removeAttribute('style');});
+}
+
+function updateBubble(){
+  const b=S.beta==null?0:S.beta, g=S.gamma==null?0:S.gamma;
+  const R=30; // px of bubble travel, mapped over ±45°
+  const x=Math.max(-1,Math.min(1,g/45))*R, y=Math.max(-1,Math.min(1,b/45))*R;
+  $('bubbleDot').style.transform=`translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`;
+  $('levelOverlay').classList.toggle('ok',isFlat(LEVEL_TOL));
 }
 
 function loop(now){
@@ -653,8 +749,28 @@ function loop(now){
     toast('Nessun dato bussola: consenti l\'accesso a Movimento e Orientamento nelle impostazioni di Safari',5000);
   }
 
-  /* ---- calibration window ---- */
-  if(S.calibrating){
+  /* ---- PHASE 1 · wait until the phone is held flat ---- */
+  if(S.phase==='level'){
+    updateBubble();
+    if(isFlat(LEVEL_TOL)){
+      if(levelOkSince==null) levelOkSince=now;
+      if(now-levelOkSince>LEVEL_HOLD){
+        $('levelOverlay').classList.add('hidden');
+        if(!calibrated){
+          S.phase='cal'; calT0=now; calSamples=[];
+          $('calOverlay').classList.remove('hidden');
+          setStatus('Calibrazione',false);
+        } else {
+          S.phase='scan';
+          setStatus(S.laps?`Giro ${S.laps+1} · media su ${S.laps}`:'Ruota di 360°',false);
+        }
+      }
+    } else levelOkSince=null;
+    requestAnimationFrame(loop); return;
+  }
+
+  /* ---- PHASE 2 · noise-floor calibration ---- */
+  if(S.phase==='cal'){
     const p=Math.min((now-calT0)/CAL_MS,1);
     $('calProg').style.strokeDashoffset=414.7*(1-p);
     $('calNum').textContent=Math.ceil((CAL_MS-(now-calT0))/1000)||1;
@@ -662,37 +778,55 @@ function loop(now){
     if(p>=1){
       calSamples.sort((a,b)=>a-b);
       S.noiseFloor=calSamples[Math.floor(calSamples.length/2)]||0;
-      S.calibrating=false;
+      calibrated=true; S.phase='scan';
       $('calOverlay').classList.add('hidden');
       setStatus('Ruota di 360°',false);
     }
     requestAnimationFrame(loop); return;
   }
 
-  /* ---- live capture (heading, amplitude) ---- */
+  /* ---- PHASE 3 · live sweep — pause if the phone tilts too much ---- */
+  if(!isFlat(LEVEL_BREAK)){
+    S.phase='level'; levelOkSince=null;
+    $('levelOverlay').classList.remove('hidden');
+    setStatus('Metti in piano',false);
+    if(now-tiltToastT>4000){
+      tiltToastT=now;
+      toast('Telefono inclinato: rimettilo in piano per continuare la scansione');
+    }
+    requestAnimationFrame(loop); return;
+  }
+
   const excess=Math.max(0,rms-S.noiseFloor);
   $('rmsFill').style.width=Math.min(excess*900,100)+'%';
 
   if(S.heading!=null){
     const bin=Math.floor(norm(S.heading)/BIN_DEG)%NUM_BINS;
-    if(excess>S.bins[bin]) S.bins[bin]=excess;
-    if(!S.hits[bin]){
-      S.hits[bin]=1;
+    if(excess>S.curBins[bin]) S.curBins[bin]=excess;
+    if(!S.curHits[bin]){
+      S.curHits[bin]=1;
       covSegs[bin].setAttribute('stroke','#2dd4bf');
       covSegs[bin].setAttribute('style','filter:drop-shadow(0 0 4px rgba(45,212,191,.9))');
-    } else S.hits[bin]++;
+    } else S.curHits[bin]++;
   }
 
-  /* ---- coverage + live peak ---- */
-  let covered=0; for(let i=0;i<NUM_BINS;i++) if(S.hits[i]) covered++;
+  /* ---- coverage of the current lap ---- */
+  let covered=0; for(let i=0;i<NUM_BINS;i++) if(S.curHits[i]) covered++;
   const cov=covered/NUM_BINS;
   $('covFill').style.width=(cov*100).toFixed(0)+'%';
   $('covTxt').textContent=(cov*100).toFixed(0)+'%';
 
+  if(cov>0 && announcedLap!==S.laps+1){
+    announcedLap=S.laps+1;
+    if(S.laps>0) setStatus(`Giro ${S.laps+1} · media su ${S.laps}`,false);
+  }
+
+  /* ---- averaged histogram + live peak ---- */
   if(now-lastHisto>140){
     lastHisto=now;
-    S.peakDeg=computePeak();
-    drawHisto();
+    const {db,dh}=displayBins();
+    S.peakDeg=computePeak(db,dh);
+    drawHisto(db,dh);
     if(S.peakDeg!=null){
       const w=windFor(S.peakDeg);
       $('peakName').textContent=w.name;
@@ -702,10 +836,15 @@ function loop(now){
     }
   }
 
-  /* ---- sweep complete? (keeps running & refining afterwards) ---- */
-  if(!S.complete && cov>=COVERAGE_DONE){
-    S.complete=true;
-    setStatus('Giro completo · direzione trovata',true);
+  /* ---- lap complete → fold into the running average, start a new lap ---- */
+  if(cov>=COVERAGE_DONE){
+    for(let i=0;i<NUM_BINS;i++){
+      if(S.curHits[i]){ S.accSum[i]+=S.curBins[i]; S.accCnt[i]++; }
+    }
+    S.laps++;
+    $('lapsTxt').textContent=S.laps;
+    resetLapRing();
+    setStatus(`Giro ${S.laps} completo · continua per affinare`,true);
     const box=$('compassBox');
     box.classList.remove('pulse'); void box.offsetWidth; box.classList.add('pulse');
     if(navigator.vibrate) navigator.vibrate([40,60,40]);
@@ -753,7 +892,7 @@ const persist=r=>localStorage.setItem(LS_KEY,JSON.stringify(r));
 
 function saveReading(deg,wind){
   const rows=loadLog();
-  rows.unshift({ts:Date.now(),lat:S.lat,lon:S.lon,sector:wind.name,angle:Math.round(deg*10)/10});
+  rows.unshift({ts:Date.now(),lat:S.lat,lon:S.lon,sector:wind.name,angle:Math.round(deg*10)/10,laps:S.laps});
   persist(rows.slice(0,100));
   renderLog();
 }
@@ -768,11 +907,12 @@ function renderLog(){
     const when=d.toLocaleDateString('it-IT',{day:'2-digit',month:'short'})+' · '+
                d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
     const pos=(r.lat!=null)?r.lat.toFixed(4)+', '+r.lon.toFixed(4):'posizione n/d';
+    const lapsTag=r.laps?` &nbsp;·&nbsp; ${r.laps} gir${r.laps===1?'o':'i'}`:'';
     return `<div class="log-row">
       <div class="rose"><i class="fa-solid fa-location-arrow" style="transform:rotate(${(r.angle-45).toFixed(0)}deg)"></i></div>
       <div class="info">
         <div class="name">${r.sector} <span style="color:var(--cyan);font-size:12px;font-weight:600">${r.angle}°</span></div>
-        <div class="meta">${when} &nbsp;·&nbsp; ${pos}</div>
+        <div class="meta">${when} &nbsp;·&nbsp; ${pos}${lapsTag}</div>
       </div>
       <button class="del" data-i="${i}" aria-label="Elimina"><i class="fa-solid fa-xmark"></i></button>
     </div>`;
