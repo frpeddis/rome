@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#060a12">
-<title>WindRose — Wind Direction Finder</title>
+<title>WindRose — Acoustic Wind Finder</title>
 
 <!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -15,13 +15,13 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <!-- Google Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 
 <style>
 :root{
   --bg:#060a12;
   --glass:rgba(10,18,30,.55);
-  --glass-strong:rgba(8,14,24,.78);
+  --glass-strong:rgba(8,14,24,.82);
   --stroke:rgba(120,220,255,.18);
   --cyan:#22d3ee;
   --teal:#2dd4bf;
@@ -40,33 +40,22 @@ html,body{
 }
 #app{position:fixed;inset:0;overflow:hidden}
 
-/* ============ MAP ============ */
-#map{position:absolute;inset:0;z-index:1;background:#0b1220}
-#map .leaflet-control-attribution{
-  background:rgba(6,10,18,.6);color:#5b7a8c;font-size:8px;
-}
+/* ============ MAP BACKGROUND ============ */
+#map{position:absolute;inset:0;z-index:1;background:#0b1220;opacity:.55}
+#map .leaflet-control-attribution{background:rgba(6,10,18,.6);color:#5b7a8c;font-size:8px}
 #map .leaflet-control-attribution a{color:#5b7a8c}
 .leaflet-container{background:#0b1220}
-
-/* pulsing GPS marker */
 .gps-dot{position:relative}
-.gps-dot .core{
-  position:absolute;left:50%;top:50%;width:14px;height:14px;
-  transform:translate(-50%,-50%);border-radius:50%;
-  background:var(--cyan);box-shadow:0 0 12px var(--cyan),0 0 30px rgba(34,211,238,.5);
-  border:2px solid rgba(255,255,255,.85);
-}
-.gps-dot .halo{
-  position:absolute;left:50%;top:50%;width:14px;height:14px;
-  transform:translate(-50%,-50%);border-radius:50%;
-  background:rgba(34,211,238,.35);animation:haloPulse 2.2s ease-out infinite;
-}
-@keyframes haloPulse{
-  0%{transform:translate(-50%,-50%) scale(1);opacity:.8}
-  100%{transform:translate(-50%,-50%) scale(5);opacity:0}
-}
+.gps-dot .core{position:absolute;left:50%;top:50%;width:12px;height:12px;transform:translate(-50%,-50%);
+  border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan);border:2px solid rgba(255,255,255,.85)}
+.gps-dot .halo{position:absolute;left:50%;top:50%;width:12px;height:12px;transform:translate(-50%,-50%);
+  border-radius:50%;background:rgba(34,211,238,.35);animation:haloPulse 2.2s ease-out infinite}
+@keyframes haloPulse{0%{transform:translate(-50%,-50%) scale(1);opacity:.8}100%{transform:translate(-50%,-50%) scale(5);opacity:0}}
 
-/* ============ GLASS PANELS ============ */
+/* vignette so the instrument pops over the map */
+#vignette{position:absolute;inset:0;z-index:2;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 42%,rgba(6,10,18,.15) 0%,rgba(6,10,18,.78) 78%,rgba(6,10,18,.95) 100%)}
+
 .glass{
   background:var(--glass);
   -webkit-backdrop-filter:blur(14px) saturate(140%);
@@ -76,39 +65,28 @@ html,body{
   box-shadow:0 8px 40px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06);
 }
 
-/* ============ STAGE OVERLAYS ============ */
+/* ============ WELCOME ============ */
 .stage{
-  position:absolute;inset:0;z-index:20;
+  position:absolute;inset:0;z-index:30;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   padding:max(24px,env(safe-area-inset-top)) 24px max(24px,env(safe-area-inset-bottom));
   transition:opacity .55s ease, visibility .55s;
 }
 .stage.hidden{opacity:0;visibility:hidden;pointer-events:none}
-
-/* ---- WELCOME ---- */
-#stage-welcome{background:radial-gradient(ellipse at 50% 30%,#0d1a2b 0%,var(--bg) 70%)}
-.brand{font-size:13px;letter-spacing:.42em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
-.title{font-size:34px;font-weight:800;letter-spacing:-.02em;text-align:center;line-height:1.15;
+#stage-welcome{background:radial-gradient(ellipse at 50% 30%,#0d1a2b 0%,var(--bg) 72%)}
+.brand{font-size:12px;letter-spacing:.42em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.title{font-size:33px;font-weight:800;letter-spacing:-.02em;text-align:center;line-height:1.15;
   background:linear-gradient(135deg,#fff 20%,var(--cyan) 80%);
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-.subtitle{margin-top:14px;font-size:14px;font-weight:400;color:var(--muted);text-align:center;max-width:300px;line-height:1.55}
-
-.compass-splash{position:relative;width:190px;height:190px;margin:42px 0}
-.compass-splash .ring{
-  position:absolute;inset:0;border-radius:50%;
-  border:1.5px solid rgba(34,211,238,.35);
-  animation:ringPulse 2.6s ease-in-out infinite;
-}
-.compass-splash .ring:nth-child(2){inset:18px;animation-delay:.4s;border-color:rgba(45,212,191,.28)}
-.compass-splash .ring:nth-child(3){inset:36px;animation-delay:.8s;border-color:rgba(34,211,238,.2)}
+.subtitle{margin-top:14px;font-size:14px;color:var(--muted);text-align:center;max-width:305px;line-height:1.55}
+.compass-splash{position:relative;width:170px;height:170px;margin:36px 0}
+.compass-splash .ring{position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(34,211,238,.35);animation:ringPulse 2.6s ease-in-out infinite}
+.compass-splash .ring:nth-child(2){inset:17px;animation-delay:.4s;border-color:rgba(45,212,191,.28)}
+.compass-splash .ring:nth-child(3){inset:34px;animation-delay:.8s;border-color:rgba(34,211,238,.2)}
 @keyframes ringPulse{0%,100%{transform:scale(1);opacity:.55}50%{transform:scale(1.06);opacity:1}}
-.compass-splash .needle-wrap{
-  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  animation:needleSway 5s ease-in-out infinite;
-}
+.compass-splash .needle-wrap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;animation:needleSway 5s ease-in-out infinite}
 @keyframes needleSway{0%,100%{transform:rotate(-16deg)}50%{transform:rotate(22deg)}}
-.compass-splash i{font-size:64px;color:var(--cyan);text-shadow:0 0 24px rgba(34,211,238,.8)}
-
+.compass-splash i{font-size:58px;color:var(--cyan);text-shadow:0 0 24px rgba(34,211,238,.8)}
 .btn-primary{
   display:flex;align-items:center;gap:12px;
   padding:17px 34px;border:none;border-radius:999px;
@@ -118,149 +96,119 @@ html,body{
   cursor:pointer;transition:transform .15s ease;
 }
 .btn-primary:active{transform:scale(.95)}
-.perm-icons{display:flex;gap:26px;margin-top:30px}
+.btn-demo{margin-top:14px;background:none;border:none;color:var(--muted);font-family:inherit;
+  font-size:12.5px;letter-spacing:.06em;cursor:pointer;padding:10px;text-decoration:underline;text-underline-offset:3px}
+.perm-icons{display:flex;gap:26px;margin-top:22px}
 .perm-icons .p{display:flex;flex-direction:column;align-items:center;gap:7px;font-size:10.5px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
 .perm-icons i{font-size:19px;color:rgba(34,211,238,.75)}
 .perm-icons .p.ok i{color:var(--teal);text-shadow:0 0 12px rgba(45,212,191,.9)}
 
-/* ---- CALIBRATION ---- */
-#stage-calibrate{background:rgba(4,8,15,.72);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
-.cal-ring-wrap{position:relative;width:210px;height:210px}
-.cal-ring-wrap svg{width:100%;height:100%;transform:rotate(-90deg)}
-.cal-track{fill:none;stroke:rgba(120,220,255,.12);stroke-width:6}
-.cal-prog{fill:none;stroke:url(#calGrad);stroke-width:6;stroke-linecap:round;
-  transition:stroke-dashoffset .1s linear;filter:drop-shadow(0 0 6px rgba(34,211,238,.8))}
-.cal-count{
-  position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
-}
-.cal-count .num{font-size:64px;font-weight:800;color:#fff;text-shadow:0 0 30px rgba(34,211,238,.7)}
-.cal-count .lbl{font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--muted)}
-.cal-wave{width:230px;height:54px;margin-top:26px;overflow:visible}
-.cal-hint{margin-top:20px;font-size:13.5px;color:var(--muted);text-align:center;max-width:280px;line-height:1.5}
+/* ============ INSTRUMENT (main live view) ============ */
+#instrument{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;
+  padding:max(10px,env(safe-area-inset-top)) 0 max(10px,env(safe-area-inset-bottom));
+  opacity:0;visibility:hidden;transition:opacity .6s ease}
+#instrument.on{opacity:1;visibility:visible}
 
-/* ---- SCANNING HUD (transparent over map) ---- */
-#stage-scan{pointer-events:none;justify-content:flex-start;background:transparent}
-.scan-top{
-  margin-top:max(10px,env(safe-area-inset-top));
-  padding:10px 22px;display:flex;align-items:center;gap:12px;
-  font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:var(--cyan);
+.status-chip{
+  margin-top:2px;padding:9px 20px;display:flex;align-items:center;gap:10px;
+  font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--cyan);
+  border-radius:999px;
 }
-.scan-top .dot{width:8px;height:8px;border-radius:50%;background:var(--cyan);
-  box-shadow:0 0 10px var(--cyan);animation:blink 1s ease-in-out infinite}
+.status-chip .dot{width:8px;height:8px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px var(--cyan);animation:blink 1s ease-in-out infinite}
+.status-chip.done{color:var(--teal);border-color:rgba(45,212,191,.45)}
+.status-chip.done .dot{background:var(--teal);box-shadow:0 0 10px var(--teal);animation:none}
 @keyframes blink{50%{opacity:.25}}
 
-.radar-wrap{
-  position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);
-  width:min(78vw,330px);height:min(78vw,330px);
+#compassBox{
+  position:relative;width:min(94vw,430px);height:min(94vw,430px);
+  margin-top:2vh;flex:none;
 }
-#radarSvg{width:100%;height:100%;overflow:visible}
-.scan-heading{
+#compassSvg{width:100%;height:100%;overflow:visible;display:block}
+#compassBox.pulse #compassSvg{animation:foundPulse 1.1s cubic-bezier(.19,1,.22,1)}
+@keyframes foundPulse{0%{transform:scale(1)}25%{transform:scale(1.07)}100%{transform:scale(1)}}
+
+/* fixed center readout over the rotating rose */
+.center-hud{
   position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-  display:flex;flex-direction:column;align-items:center;gap:2px;
+  display:flex;flex-direction:column;align-items:center;gap:0;pointer-events:none;
 }
-.scan-heading .deg{font-size:38px;font-weight:800;color:#fff;text-shadow:0 0 22px rgba(34,211,238,.55);font-variant-numeric:tabular-nums}
-.scan-heading .card{font-size:12px;letter-spacing:.34em;color:var(--cyan);text-transform:uppercase}
+.center-hud .deg{font-size:34px;font-weight:800;color:#fff;line-height:1;
+  text-shadow:0 0 20px rgba(34,211,238,.55);font-variant-numeric:tabular-nums}
+.center-hud .card{font-size:11px;letter-spacing:.32em;color:var(--cyan);text-transform:uppercase;margin-top:3px}
 
-.scan-bottom{
-  position:absolute;left:16px;right:16px;
-  bottom:max(18px,env(safe-area-inset-bottom));
-  padding:16px 18px 14px;
+/* calibration mini-overlay in the compass center */
+#calOverlay{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:132px;height:132px;border-radius:50%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  background:rgba(6,12,20,.78);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  border:1px solid var(--stroke);transition:opacity .4s;
 }
-.scan-bottom .row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-.scan-bottom .lbl{font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--muted)}
-.scan-bottom .val{font-size:12px;font-weight:600;color:var(--teal);font-variant-numeric:tabular-nums}
-#waveChart{width:100%;height:56px;display:block}
-.cov-bar{height:4px;border-radius:4px;background:rgba(120,220,255,.12);margin-top:10px;overflow:hidden}
-.cov-fill{height:100%;width:0%;border-radius:4px;background:linear-gradient(90deg,var(--cyan),var(--teal));
-  box-shadow:0 0 10px rgba(34,211,238,.7);transition:width .25s ease}
+#calOverlay.hidden{opacity:0;pointer-events:none}
+#calOverlay svg{position:absolute;inset:-5px;transform:rotate(-90deg)}
+#calOverlay .n{font-size:36px;font-weight:800;color:#fff;text-shadow:0 0 18px rgba(34,211,238,.7)}
+#calOverlay .l{font-size:8.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--muted)}
 
-/* ---- RESULT ---- */
-#stage-result{pointer-events:none;justify-content:flex-end;background:transparent}
-#windrose-overlay{
-  position:absolute;left:50%;top:44%;transform:translate(-50%,-50%) scale(.6);
-  width:min(86vw,360px);height:min(86vw,360px);
-  opacity:0;transition:opacity 1.1s ease,transform 1.1s cubic-bezier(.19,1,.22,1);
-  pointer-events:none;
+/* bottom live panel */
+#panel{
+  width:calc(100% - 28px);max-width:430px;margin-top:auto;
+  padding:15px 18px 13px;
 }
-#stage-result.revealed #windrose-overlay{opacity:1;transform:translate(-50%,-50%) scale(1)}
-.result-card{
-  width:calc(100% - 32px);max-width:420px;
-  margin-bottom:max(18px,env(safe-area-inset-bottom));
-  padding:22px 24px 18px;text-align:center;
-  opacity:0;transform:translateY(40px);
-  transition:opacity .9s ease .5s,transform .9s cubic-bezier(.19,1,.22,1) .5s;
-  pointer-events:auto;
-}
-#stage-result.revealed .result-card{opacity:1;transform:translateY(0)}
-.result-card .eyebrow{font-size:10px;letter-spacing:.36em;text-transform:uppercase;color:var(--muted)}
-.result-card .wind-name{
-  margin-top:6px;font-size:42px;font-weight:800;letter-spacing:-.01em;line-height:1.05;
-  background:linear-gradient(135deg,#fff 10%,var(--cyan) 90%);
+#panel .peak-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#panel .peak-label{font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--muted)}
+#panel .peak-name{
+  font-size:27px;font-weight:800;letter-spacing:-.01em;line-height:1.1;
+  background:linear-gradient(135deg,#fff 10%,var(--amber) 90%);
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
-  filter:drop-shadow(0 0 18px rgba(34,211,238,.35));
+  transition:opacity .3s;
 }
-.result-card .wind-meta{margin-top:8px;font-size:13px;color:var(--muted);display:flex;justify-content:center;gap:16px}
-.result-card .wind-meta b{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}
-.result-actions{display:flex;gap:10px;margin-top:18px}
+#panel .peak-name.idle{background:none;-webkit-text-fill-color:var(--muted);color:var(--muted);font-size:15px;font-weight:500}
+#panel .peak-deg{font-size:15px;font-weight:700;color:var(--amber);font-variant-numeric:tabular-nums;white-space:nowrap}
+#panel .meter-row{display:flex;align-items:center;gap:10px;margin-top:11px}
+#panel .meter-row .lbl{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.meter{flex:1;height:6px;border-radius:6px;background:rgba(120,220,255,.1);overflow:hidden}
+.meter>div{height:100%;width:0%;border-radius:6px;transition:width .12s linear}
+#rmsFill{background:linear-gradient(90deg,var(--cyan),var(--teal));box-shadow:0 0 8px rgba(34,211,238,.8)}
+#covFill{background:linear-gradient(90deg,var(--teal),var(--amber));box-shadow:0 0 8px rgba(45,212,191,.7)}
+#panel .pct{font-size:11px;font-weight:700;color:var(--teal);font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
+
+/* action bar */
+#actions{display:flex;gap:9px;width:calc(100% - 28px);max-width:430px;margin-top:10px}
 .btn-ghost{
-  flex:1;padding:13px 10px;border-radius:14px;border:1px solid var(--stroke);
+  flex:1;padding:13px 8px;border-radius:14px;border:1px solid var(--stroke);
   background:rgba(120,220,255,.07);color:var(--text);
-  font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;gap:8px;
-  transition:transform .15s;
+  font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .15s;
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
 }
 .btn-ghost:active{transform:scale(.95)}
-.btn-ghost.accent{background:linear-gradient(135deg,rgba(34,211,238,.22),rgba(45,212,191,.22));border-color:rgba(34,211,238,.4)}
 .btn-ghost i{color:var(--cyan)}
+.btn-ghost.accent{background:linear-gradient(135deg,rgba(34,211,238,.22),rgba(45,212,191,.22));border-color:rgba(34,211,238,.4)}
+.btn-ghost:disabled{opacity:.4}
 
-/* wind trails on map */
-#trails{position:absolute;inset:0;z-index:5;pointer-events:none;overflow:hidden}
-.trail{
-  position:absolute;height:2px;border-radius:2px;
-  background:linear-gradient(90deg,transparent,rgba(34,211,238,.85),transparent);
-  filter:drop-shadow(0 0 6px rgba(34,211,238,.7));
-  animation:trailMove linear infinite;
-  opacity:0;
-}
-@keyframes trailMove{
-  0%{transform:translate(var(--x0),var(--y0)) rotate(var(--rot));opacity:0}
-  12%{opacity:.9}
-  85%{opacity:.9}
-  100%{transform:translate(var(--x1),var(--y1)) rotate(var(--rot));opacity:0}
-}
-
-/* ---- HISTORY DRAWER ---- */
+/* ============ HISTORY DRAWER ============ */
 #drawer{
   position:absolute;left:0;right:0;bottom:0;z-index:40;
   border-radius:24px 24px 0 0;
   background:var(--glass-strong);
   -webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%);
   border-top:1px solid var(--stroke);
-  transform:translateY(calc(100% - 46px));
+  transform:translateY(100%);
   transition:transform .5s cubic-bezier(.32,.72,.24,1);
   max-height:62vh;display:flex;flex-direction:column;
   padding-bottom:env(safe-area-inset-bottom);
 }
 #drawer.open{transform:translateY(0)}
-#drawer .handle{
-  padding:12px 22px 10px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;
-}
-#drawer .handle .grip{position:absolute;left:50%;top:7px;transform:translateX(-50%);
-  width:40px;height:4px;border-radius:4px;background:rgba(120,220,255,.3)}
+#drawer .handle{position:relative;padding:16px 22px 10px;display:flex;align-items:center;justify-content:space-between;cursor:pointer}
+#drawer .handle .grip{position:absolute;left:50%;top:7px;transform:translateX(-50%);width:40px;height:4px;border-radius:4px;background:rgba(120,220,255,.3)}
 #drawer .handle .t{font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--muted);display:flex;gap:9px;align-items:center}
 #drawer .handle .t i{color:var(--cyan)}
-#clearLog{background:none;border:none;color:var(--danger);font-family:inherit;font-size:11px;
-  letter-spacing:.1em;cursor:pointer;padding:6px;display:flex;gap:6px;align-items:center;opacity:.85}
+#clearLog{background:none;border:none;color:var(--danger);font-family:inherit;font-size:11px;letter-spacing:.1em;cursor:pointer;padding:6px;display:flex;gap:6px;align-items:center;opacity:.85}
 #logList{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:2px 16px 16px}
-.log-row{
-  display:flex;align-items:center;gap:13px;
-  padding:11px 12px;margin-bottom:8px;border-radius:14px;
-  background:rgba(120,220,255,.05);border:1px solid rgba(120,220,255,.09);
-}
-.log-row .rose{width:34px;height:34px;flex:none;border-radius:50%;
-  display:flex;align-items:center;justify-content:center;
-  background:radial-gradient(circle,rgba(34,211,238,.25),transparent 75%);
-}
+.log-row{display:flex;align-items:center;gap:13px;padding:11px 12px;margin-bottom:8px;border-radius:14px;
+  background:rgba(120,220,255,.05);border:1px solid rgba(120,220,255,.09)}
+.log-row .rose{width:34px;height:34px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle,rgba(34,211,238,.25),transparent 75%)}
 .log-row .rose i{color:var(--cyan);font-size:15px}
 .log-row .info{flex:1;min-width:0}
 .log-row .name{font-size:14.5px;font-weight:700;color:var(--text)}
@@ -282,12 +230,58 @@ html,body{
 <body>
 <div id="app">
 
-  <!-- MAP -->
   <div id="map"></div>
-  <div id="trails"></div>
+  <div id="vignette"></div>
 
-  <!-- WIND ROSE SVG OVERLAY (result stage) -->
-  <!-- HISTORY DRAWER -->
+  <!-- ===== LIVE INSTRUMENT ===== -->
+  <div id="instrument">
+    <div class="status-chip glass" id="statusChip"><div class="dot"></div><span id="statusTxt">In attesa</span></div>
+
+    <div id="compassBox">
+      <svg id="compassSvg" viewBox="0 0 440 440"></svg>
+      <div class="center-hud">
+        <div class="deg" id="hudDeg">--°</div>
+        <div class="card" id="hudCard">—</div>
+      </div>
+      <div id="calOverlay" class="hidden">
+        <svg viewBox="0 0 142 142">
+          <circle cx="71" cy="71" r="66" fill="none" stroke="rgba(120,220,255,.14)" stroke-width="4"/>
+          <circle id="calProg" cx="71" cy="71" r="66" fill="none" stroke="#22d3ee" stroke-width="4"
+                  stroke-linecap="round" stroke-dasharray="414.7" stroke-dashoffset="414.7"
+                  style="filter:drop-shadow(0 0 5px rgba(34,211,238,.9))"/>
+        </svg>
+        <div class="n" id="calNum">3</div>
+        <div class="l">Calibrazione</div>
+      </div>
+    </div>
+
+    <div id="panel" class="glass">
+      <div class="peak-row">
+        <div>
+          <div class="peak-label">Provenienza rumore max</div>
+          <div class="peak-name idle" id="peakName">In ascolto…</div>
+        </div>
+        <div class="peak-deg" id="peakDeg"></div>
+      </div>
+      <div class="meter-row">
+        <span class="lbl">Vento</span>
+        <div class="meter"><div id="rmsFill"></div></div>
+      </div>
+      <div class="meter-row">
+        <span class="lbl">Giro 360°</span>
+        <div class="meter"><div id="covFill"></div></div>
+        <span class="pct" id="covTxt">0%</span>
+      </div>
+    </div>
+
+    <div id="actions">
+      <button class="btn-ghost" id="btnReset"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+      <button class="btn-ghost" id="btnHistory"><i class="fa-solid fa-clock-rotate-left"></i> Storico</button>
+      <button class="btn-ghost accent" id="btnSave" disabled><i class="fa-solid fa-floppy-disk"></i> Salva</button>
+    </div>
+  </div>
+
+  <!-- ===== HISTORY DRAWER ===== -->
   <div id="drawer">
     <div class="handle" id="drawerHandle">
       <div class="grip"></div>
@@ -297,103 +291,23 @@ html,body{
     <div id="logList"></div>
   </div>
 
-  <!-- TOAST -->
   <div id="toast"></div>
 
-  <!-- STAGE 1 · WELCOME -->
+  <!-- ===== WELCOME ===== -->
   <div class="stage" id="stage-welcome">
     <div class="brand">WindRose · Instrument</div>
     <h1 class="title">Rosa dei Venti<br>Acustica</h1>
-    <p class="subtitle">Appoggia l'iPhone in piano, ruotalo lentamente di 360° e lascia che il microfono trovi la direzione del vento.</p>
+    <p class="subtitle">Tieni l'iPhone orizzontale e ruota su te stesso di 360°: la bussola resta puntata a Nord e l'istogramma circolare rivela da dove arriva il vento.</p>
     <div class="compass-splash">
       <div class="ring"></div><div class="ring"></div><div class="ring"></div>
       <div class="needle-wrap"><i class="fa-regular fa-compass"></i></div>
     </div>
-    <button class="btn-primary" id="btnStart">
-      <i class="fa-solid fa-wind"></i> Attiva i sensori
-    </button>
+    <button class="btn-primary" id="btnStart"><i class="fa-solid fa-wind"></i> Attiva i sensori</button>
+    <button class="btn-demo" id="btnDemo">Prova la demo (senza sensori)</button>
     <div class="perm-icons">
       <div class="p" id="permGps"><i class="fa-solid fa-location-crosshairs"></i>GPS</div>
       <div class="p" id="permCompass"><i class="fa-regular fa-compass"></i>Bussola</div>
       <div class="p" id="permMic"><i class="fa-solid fa-microphone"></i>Microfono</div>
-    </div>
-  </div>
-
-  <!-- STAGE 2 · CALIBRATION -->
-  <div class="stage hidden" id="stage-calibrate">
-    <div class="cal-ring-wrap">
-      <svg viewBox="0 0 210 210">
-        <defs>
-          <linearGradient id="calGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#22d3ee"/><stop offset="100%" stop-color="#2dd4bf"/>
-          </linearGradient>
-        </defs>
-        <circle class="cal-track" cx="105" cy="105" r="96"/>
-        <circle class="cal-prog" id="calProg" cx="105" cy="105" r="96"
-                stroke-dasharray="603.2" stroke-dashoffset="603.2"/>
-      </svg>
-      <div class="cal-count">
-        <div class="num" id="calNum">3</div>
-        <div class="lbl">Calibrazione</div>
-      </div>
-    </div>
-    <svg class="cal-wave" id="calWave" viewBox="0 0 230 54" preserveAspectRatio="none">
-      <path id="calWavePath" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round"
-            style="filter:drop-shadow(0 0 6px rgba(34,211,238,.8))"/>
-    </svg>
-    <p class="cal-hint">Resta fermo: sto ascoltando il rumore ambientale per fissare la soglia di base.</p>
-  </div>
-
-  <!-- STAGE 3 · SCANNING -->
-  <div class="stage hidden" id="stage-scan">
-    <div class="scan-top glass"><div class="dot"></div> Scansione — ruota il telefono</div>
-    <div class="radar-wrap">
-      <svg id="radarSvg" viewBox="0 0 330 330"></svg>
-      <div class="scan-heading">
-        <div class="deg" id="hudDeg">--°</div>
-        <div class="card" id="hudCard">—</div>
-      </div>
-    </div>
-    <div class="scan-bottom glass">
-      <div class="row">
-        <span class="lbl">Livello vento (RMS)</span>
-        <span class="val" id="hudRms">0.000</span>
-      </div>
-      <svg id="waveChart" viewBox="0 0 400 56" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="wGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="rgba(34,211,238,.55)"/>
-            <stop offset="100%" stop-color="rgba(34,211,238,0)"/>
-          </linearGradient>
-        </defs>
-        <path id="waveFill" fill="url(#wGrad)"/>
-        <path id="waveLine" fill="none" stroke="#22d3ee" stroke-width="2"
-              style="filter:drop-shadow(0 0 5px rgba(34,211,238,.9))"/>
-      </svg>
-      <div class="cov-bar"><div class="cov-fill" id="covFill"></div></div>
-      <div class="row" style="margin-top:7px;margin-bottom:0">
-        <span class="lbl">Copertura 360°</span>
-        <span class="val" id="covTxt">0%</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- STAGE 4 · RESULT -->
-  <div class="stage hidden" id="stage-result">
-    <div id="windrose-overlay">
-      <svg id="roseSvg" viewBox="0 0 360 360" style="width:100%;height:100%;overflow:visible"></svg>
-    </div>
-    <div class="result-card glass">
-      <div class="eyebrow">Vento rilevato da</div>
-      <div class="wind-name" id="resName">—</div>
-      <div class="wind-meta">
-        <span><i class="fa-regular fa-compass" style="color:var(--cyan)"></i> <b id="resDeg">—</b></span>
-        <span><i class="fa-solid fa-location-dot" style="color:var(--teal)"></i> <b id="resCoord">—</b></span>
-      </div>
-      <div class="result-actions">
-        <button class="btn-ghost" id="btnHistory"><i class="fa-solid fa-clock-rotate-left"></i> Storico</button>
-        <button class="btn-ghost accent" id="btnRescan"><i class="fa-solid fa-rotate"></i> Nuova scansione</button>
-      </div>
     </div>
   </div>
 
@@ -402,570 +316,458 @@ html,body{
 <script>
 'use strict';
 /* =====================================================================
-   WindRose Compass — single-file acoustic wind direction finder
-   Stages: welcome → calibrate (3s noise floor) → scan (360° sweep) → reveal
+   WindRose — live acoustic wind finder
+   The compass rose is a WORLD-FIXED layer: it counter-rotates by the
+   device heading, so N always points to true North while you spin.
+   A circular histogram (72 bins × 5°) grows in world coordinates as
+   you sweep 360°; the loudest lobe marks the wind's incoming direction.
 ===================================================================== */
 
 const $ = id => document.getElementById(id);
+const NS = 'http://www.w3.org/2000/svg';
 
 /* ---------- Mediterranean wind sectors ---------- */
 const WINDS = [
-  {name:'Tramontana', dir:'N',  from:337.5, to:22.5},
-  {name:'Grecale',    dir:'NE', from:22.5,  to:67.5},
-  {name:'Levante',    dir:'E',  from:67.5,  to:112.5},
-  {name:'Scirocco',   dir:'SE', from:112.5, to:157.5},
-  {name:'Mezzogiorno / Ostro', dir:'S', from:157.5, to:202.5},
-  {name:'Libeccio',   dir:'SW', from:202.5, to:247.5},
-  {name:'Ponente',    dir:'W',  from:247.5, to:292.5},
-  {name:'Maestrale',  dir:'NW', from:292.5, to:337.5},
+  {name:'Tramontana', dir:'N'}, {name:'Grecale', dir:'NE'},
+  {name:'Levante',    dir:'E'}, {name:'Scirocco', dir:'SE'},
+  {name:'Ostro',      dir:'S'}, {name:'Libeccio', dir:'SW'},
+  {name:'Ponente',    dir:'W'}, {name:'Maestrale', dir:'NW'},
 ];
 const CARDINALS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+const norm = d => ((d % 360) + 360) % 360;
+const windFor = deg => WINDS[Math.round(norm(deg)/45) % 8];
+const cardFor = deg => CARDINALS[Math.round(norm(deg)/22.5) % 16];
 
-function windFor(deg){
-  const d = ((deg % 360) + 360) % 360;
-  if (d >= 337.5 || d < 22.5) return WINDS[0];
-  return WINDS.find(w => d >= w.from && d < w.to) || WINDS[0];
-}
-const cardFor = deg => CARDINALS[Math.round((((deg%360)+360)%360)/22.5)%16];
-
-/* ---------- App state ---------- */
-const S = {
-  stage:'welcome',
-  lat:null, lon:null, accuracy:null,
-  heading:null,               // absolute compass heading (0 = true/magnetic N)
-  noiseFloor:0,
-  bins:new Float32Array(72),  // peak RMS per 5° bin
-  binHits:new Uint16Array(72),
-  scanStart:0,
-  audio:{ctx:null, analyser:null, data:null},
-  map:null, marker:null, geoWatch:null,
-  raf:null,
-  waveHist:new Array(90).fill(0),
-  resultDeg:null,
-};
-
+/* ---------- Tunables ---------- */
 const NUM_BINS = 72, BIN_DEG = 5;
-const SCAN_MIN_MS   = 12000;   // minimum sweep window
-const SCAN_MAX_MS   = 45000;   // hard stop → use what we have
-const COVERAGE_DONE = 0.85;    // fraction of bins visited to finish early
+const CAL_MS = 3000;            // noise-floor calibration window
+const COVERAGE_DONE = 0.85;     // fraction of bins to call the sweep complete
+const HISTO_R0 = 64;            // histogram inner radius
+const HISTO_R1 = 172;           // histogram max outer radius
+const CX = 220, CY = 220;
+
+/* ---------- State ---------- */
+const S = {
+  running:false, demo:false,
+  heading:null, smHeading:null,      // raw + display-smoothed heading
+  calibrating:false, noiseFloor:0,
+  bins:new Float32Array(NUM_BINS),   // peak excess-RMS per world bin
+  hits:new Uint16Array(NUM_BINS),
+  peakDeg:null, complete:false, saved:false,
+  lat:null, lon:null,
+  audio:{ctx:null, analyser:null, data:null},
+  map:null, marker:null,
+  demoT0:0,
+};
 
 /* ---------- Toast ---------- */
 let toastT;
-function toast(msg, ms=3200){
-  const t = $('toast');
-  t.textContent = msg; t.classList.add('show');
-  clearTimeout(toastT);
-  toastT = setTimeout(()=>t.classList.remove('show'), ms);
+function toast(msg, ms=3400){
+  const t=$('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),ms);
 }
 
 /* =====================================================================
-   MAP (Leaflet · CartoDB Dark Matter)
+   MAP BACKGROUND (Leaflet · CartoDB Dark Matter) — never blocks the UI
 ===================================================================== */
 function initMap(){
-  S.map = L.map('map', {
-    zoomControl:false, attributionControl:true,
-    dragging:false, touchZoom:false, scrollWheelZoom:false,
-    doubleClickZoom:false, boxZoom:false, keyboard:false, tap:false,
-    zoomAnimation:true, fadeAnimation:true,
-  }).setView([41.9028, 12.4964], 15); // Rome fallback until first fix
-
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution:'&copy; OpenStreetMap &copy; CARTO', maxZoom:19, subdomains:'abcd',
-  }).addTo(S.map);
-
-  const icon = L.divIcon({
-    className:'gps-dot',
-    html:'<div class="halo"></div><div class="core"></div>',
-    iconSize:[14,14], iconAnchor:[7,7],
-  });
-  S.marker = L.marker([41.9028,12.4964], {icon, interactive:false}).addTo(S.map);
+  try{
+    S.map = L.map('map',{zoomControl:false,dragging:false,touchZoom:false,scrollWheelZoom:false,
+      doubleClickZoom:false,boxZoom:false,keyboard:false,tap:false}).setView([41.9028,12.4964],15);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+      {attribution:'&copy; OSM &copy; CARTO',maxZoom:19,subdomains:'abcd'}).addTo(S.map);
+    const icon=L.divIcon({className:'gps-dot',html:'<div class="halo"></div><div class="core"></div>',
+      iconSize:[12,12],iconAnchor:[6,6]});
+    S.marker=L.marker([41.9028,12.4964],{icon,interactive:false}).addTo(S.map);
+  }catch(e){ /* map is decorative — the instrument works without it */ }
 }
-
-function setMapInteractive(on){
-  const m = S.map; if(!m) return;
-  ['dragging','touchZoom','doubleClickZoom'].forEach(h=>{
-    if (m[h]) on ? m[h].enable() : m[h].disable();
-  });
+function startGeo(){
+  if(!('geolocation' in navigator)) return;
+  navigator.geolocation.watchPosition(p=>{
+    const first = S.lat==null;
+    S.lat=p.coords.latitude; S.lon=p.coords.longitude;
+    if(S.marker) S.marker.setLatLng([S.lat,S.lon]);
+    if(first && S.map){ S.map.setView([S.lat,S.lon],16); $('permGps').classList.add('ok'); }
+  }, ()=>toast('GPS non disponibile: le coordinate non verranno salvate'),
+  {enableHighAccuracy:true,maximumAge:2000,timeout:15000});
 }
 
 /* =====================================================================
-   PERMISSIONS & SENSORS
+   SENSORS
 ===================================================================== */
-function startGeo(){
-  return new Promise(resolve=>{
-    if (!('geolocation' in navigator)){ toast('⚠️ GPS non disponibile su questo dispositivo'); return resolve(false); }
-    let first = true;
-    S.geoWatch = navigator.geolocation.watchPosition(pos=>{
-      S.lat = pos.coords.latitude; S.lon = pos.coords.longitude;
-      S.accuracy = pos.coords.accuracy;
-      S.marker.setLatLng([S.lat,S.lon]);
-      if (first){ first=false; S.map.setView([S.lat,S.lon],17,{animate:true}); $('permGps').classList.add('ok'); resolve(true); }
-    }, err=>{
-      toast('⚠️ GPS negato — la mappa resta sulla posizione di default');
-      if (first){ first=false; resolve(false); }
-    }, {enableHighAccuracy:true, maximumAge:1500, timeout:12000});
-    setTimeout(()=>{ if(first){ first=false; resolve(false); } }, 13000);
-  });
-}
-
 function onOrient(e){
-  let h = null;
-  if (typeof e.webkitCompassHeading === 'number' && !isNaN(e.webkitCompassHeading)){
-    h = e.webkitCompassHeading;                       // iOS: already CW-from-north
-  } else if (e.absolute && e.alpha != null){
-    h = (360 - e.alpha) % 360;                        // Android absolute
-  } else if (e.alpha != null){
-    h = (360 - e.alpha) % 360;                        // best effort
-  }
-  if (h != null) S.heading = h;
+  let h=null;
+  if(typeof e.webkitCompassHeading==='number' && !isNaN(e.webkitCompassHeading)) h=e.webkitCompassHeading;
+  else if(e.alpha!=null) h=norm(360-e.alpha);
+  if(h!=null){ S.heading=h; }
 }
-
 async function startCompass(){
   try{
-    if (typeof DeviceOrientationEvent !== 'undefined' &&
-        typeof DeviceOrientationEvent.requestPermission === 'function'){
-      const res = await DeviceOrientationEvent.requestPermission(); // iOS 13+
-      if (res !== 'granted'){ toast('⚠️ Permesso bussola negato'); return false; }
+    if(typeof DeviceOrientationEvent!=='undefined' &&
+       typeof DeviceOrientationEvent.requestPermission==='function'){
+      const r=await DeviceOrientationEvent.requestPermission();
+      if(r!=='granted'){ toast('⚠️ Permesso bussola negato'); return false; }
     }
-    if ('ondeviceorientationabsolute' in window)
-      window.addEventListener('deviceorientationabsolute', onOrient, true);
-    window.addEventListener('deviceorientation', onOrient, true);
+    if('ondeviceorientationabsolute' in window)
+      window.addEventListener('deviceorientationabsolute',onOrient,true);
+    window.addEventListener('deviceorientation',onOrient,true);
     $('permCompass').classList.add('ok');
     return true;
-  }catch(e){ toast('⚠️ Bussola non disponibile: '+e.message); return false; }
+  }catch(e){ toast('⚠️ Bussola non disponibile'); return false; }
 }
-
 async function startMic(){
   try{
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:false },
-      video:false,
-    });
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    const ctx = new Ctx();
-    if (ctx.state === 'suspended') await ctx.resume(); // iOS requires resume in user gesture chain
-
-    const src = ctx.createMediaStreamSource(stream);
-
-    // Band-pass 20–250 Hz: isolate wind rumble, reject speech/hiss
-    const hp = ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=20;  hp.Q.value=.7;
-    const lp = ctx.createBiquadFilter(); lp.type='lowpass';  lp.frequency.value=250; lp.Q.value=.8;
-
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 2048;
-    analyser.smoothingTimeConstant = 0.55;
-
+    const stream=await navigator.mediaDevices.getUserMedia({
+      audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false},video:false});
+    const Ctx=window.AudioContext||window.webkitAudioContext;
+    const ctx=new Ctx();
+    if(ctx.state==='suspended') await ctx.resume();
+    const src=ctx.createMediaStreamSource(stream);
+    // band-pass 20–250 Hz: wind rumble in, voices/hiss out
+    const hp=ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=20;  hp.Q.value=.7;
+    const lp=ctx.createBiquadFilter(); lp.type='lowpass';  lp.frequency.value=250; lp.Q.value=.8;
+    const analyser=ctx.createAnalyser(); analyser.fftSize=2048; analyser.smoothingTimeConstant=.5;
     src.connect(hp); hp.connect(lp); lp.connect(analyser);
-
-    S.audio = {ctx, analyser, data:new Float32Array(analyser.fftSize)};
+    S.audio={ctx,analyser,data:new Float32Array(analyser.fftSize)};
     $('permMic').classList.add('ok');
     return true;
-  }catch(e){ toast('⚠️ Microfono negato — impossibile analizzare il vento'); return false; }
+  }catch(e){ toast('⚠️ Microfono negato: impossibile analizzare il vento'); return false; }
+}
+function readRMS(){
+  if(S.demo) return demoRMS();
+  const a=S.audio; if(!a.analyser) return 0;
+  a.analyser.getFloatTimeDomainData(a.data);
+  let s=0; for(let i=0;i<a.data.length;i++) s+=a.data[i]*a.data[i];
+  return Math.sqrt(s/a.data.length);
 }
 
-function readRMS(){
-  const a = S.audio; if (!a.analyser) return 0;
-  a.analyser.getFloatTimeDomainData(a.data);
-  let sum = 0;
-  for (let i=0;i<a.data.length;i++) sum += a.data[i]*a.data[i];
-  return Math.sqrt(sum / a.data.length);
+/* ---------- Demo mode (no sensors: desktop preview) ---------- */
+const DEMO_WIND_DEG = 215; // pretend Libeccio
+function demoTick(now){
+  const t=(now-S.demoT0)/1000;
+  S.heading = norm(t*34 + 8*Math.sin(t*1.7)); // steady spin with wobble
+}
+function demoRMS(){
+  if(S.heading==null) return 0.01;
+  const d=Math.abs(norm(S.heading-DEMO_WIND_DEG+180)-180); // angular distance to lobe
+  const lobe=Math.exp(-(d*d)/(2*38*38));
+  return 0.012 + 0.11*lobe + Math.random()*0.01;
 }
 
 /* =====================================================================
-   STAGE MACHINE
+   COMPASS SVG — built once; rose layer counter-rotates every frame
 ===================================================================== */
-function showStage(id){
-  ['stage-welcome','stage-calibrate','stage-scan','stage-result']
-    .forEach(s => $(s).classList.toggle('hidden', s !== id));
-  S.stage = id.replace('stage-','');
-}
+let roseG, histoG, covG, peakG, covSegs=[];
+function mk(t,a){const el=document.createElementNS(NS,t);for(const k in a)el.setAttribute(k,a[k]);return el;}
+function pol(r,deg){const rad=(deg-90)*Math.PI/180;return [CX+r*Math.cos(rad),CY+r*Math.sin(rad)];}
 
-/* ---------- 1 → activate everything ---------- */
-$('btnStart').addEventListener('click', async ()=>{
-  const btn = $('btnStart');
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Attivazione…';
-
-  // Compass & mic first: both must run inside the user-gesture chain on iOS
-  const okCompass = await startCompass();
-  const okMic     = await startMic();
-  const geoP      = startGeo(); // async fix, don't block on it
-
-  if (!okMic){
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fa-solid fa-wind"></i> Riprova';
-    return;
-  }
-  if (!okCompass) toast('Bussola assente: usa la rotazione della mappa come riferimento', 4000);
-
-  await Promise.race([geoP, new Promise(r=>setTimeout(r,2500))]);
-  startCalibration();
-});
-
-/* ---------- 2 · Calibration (3 s noise floor) ---------- */
-function startCalibration(){
-  showStage('stage-calibrate');
-  setMapInteractive(false);
-
-  const DURATION = 3000, C = 603.2; // 2πr, r=96
-  const t0 = performance.now();
-  const samples = [];
-  const wavePts = new Array(46).fill(27);
-
-  function tick(now){
-    const el = now - t0, p = Math.min(el/DURATION, 1);
-    $('calProg').style.strokeDashoffset = C * (1-p);
-    $('calNum').textContent = Math.ceil((DURATION-el)/1000) || 1;
-
-    const rms = readRMS();
-    samples.push(rms);
-
-    // ambient listening wave
-    wavePts.shift();
-    wavePts.push(27 - Math.min(rms*260, 24) * (0.6 + 0.4*Math.sin(now/90)));
-    let d = `M 0 ${wavePts[0].toFixed(1)}`;
-    for (let i=1;i<wavePts.length;i++) d += ` L ${(i*5).toFixed(0)} ${wavePts[i].toFixed(1)}`;
-    $('calWavePath').setAttribute('d', d);
-
-    if (p < 1){ S.raf = requestAnimationFrame(tick); }
-    else {
-      samples.sort((a,b)=>a-b);
-      const med = samples[Math.floor(samples.length/2)] || 0;
-      S.noiseFloor = med;
-      startScan();
-    }
-  }
-  S.raf = requestAnimationFrame(tick);
-}
-
-/* ---------- 3 · Scanning sweep ---------- */
-function buildRadar(){
-  const svg = $('radarSvg'); svg.innerHTML = '';
-  const NS = 'http://www.w3.org/2000/svg', cx=165, cy=165, R=150;
-  const mk = (t,a)=>{ const el=document.createElementNS(NS,t); for(const k in a) el.setAttribute(k,a[k]); return el; };
-
-  const defs = mk('defs',{});
-  defs.innerHTML = `
-    <linearGradient id="beamGrad" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="rgba(34,211,238,0)"/>
-      <stop offset="100%" stop-color="rgba(34,211,238,.55)"/>
-    </linearGradient>`;
-  svg.appendChild(defs);
-
-  [1,.72,.44].forEach(f=>svg.appendChild(mk('circle',{cx,cy,r:R*f,fill:'none',
-    stroke:'rgba(120,220,255,.16)','stroke-width':1})));
-  // tick marks + cardinal letters
-  for (let a=0;a<360;a+=15){
-    const rad=(a-90)*Math.PI/180, big=a%90===0;
-    const r1=R-(big?16:8);
-    svg.appendChild(mk('line',{
-      x1:cx+r1*Math.cos(rad), y1:cy+r1*Math.sin(rad),
-      x2:cx+R*Math.cos(rad),  y2:cy+R*Math.sin(rad),
-      stroke: big?'rgba(34,211,238,.8)':'rgba(120,220,255,.3)','stroke-width':big?2:1}));
-    if (big){
-      const t=mk('text',{x:cx+(R-30)*Math.cos(rad),y:cy+(R-30)*Math.sin(rad),
-        fill:'rgba(180,235,255,.85)','font-size':15,'font-weight':700,
-        'text-anchor':'middle','dominant-baseline':'central','font-family':'Inter'});
-      t.textContent = {0:'N',90:'E',180:'S',270:'W'}[a];
-      svg.appendChild(t);
-    }
-  }
-  // amplitude petals group (behind beam)
-  svg.appendChild(mk('g',{id:'petals'}));
-  // sweeping beam (wedge)
-  const beam = mk('path',{id:'beam', fill:'url(#beamGrad)', opacity:.9});
-  svg.appendChild(beam);
-  svg.appendChild(mk('circle',{cx,cy,r:4,fill:'#22d3ee',
-    style:'filter:drop-shadow(0 0 8px #22d3ee)'}));
-}
-
-function beamPath(deg){
-  const cx=165,cy=165,R=148, w=26;
-  const a0=(deg-w-90)*Math.PI/180, a1=(deg-90)*Math.PI/180;
-  return `M ${cx} ${cy} L ${cx+R*Math.cos(a0)} ${cy+R*Math.sin(a0)}
-          A ${R} ${R} 0 0 1 ${cx+R*Math.cos(a1)} ${cy+R*Math.sin(a1)} Z`;
-}
-
-function drawPetals(){
-  const g = $('petals'); if(!g) return;
-  const cx=165,cy=165,Rmin=18,Rmax=142;
-  let max = 0;
-  for (let i=0;i<NUM_BINS;i++) max = Math.max(max, S.bins[i]);
-  let html = '';
-  if (max > 0){
-    for (let i=0;i<NUM_BINS;i++){
-      if (!S.binHits[i]) continue;
-      const f = S.bins[i]/max;
-      const r = Rmin + (Rmax-Rmin)*f;
-      const a0=(i*BIN_DEG-90)*Math.PI/180, a1=((i+1)*BIN_DEG-90)*Math.PI/180;
-      html += `<path d="M ${cx} ${cy}
-        L ${(cx+r*Math.cos(a0)).toFixed(1)} ${(cy+r*Math.sin(a0)).toFixed(1)}
-        A ${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 ${(cx+r*Math.cos(a1)).toFixed(1)} ${(cy+r*Math.sin(a1)).toFixed(1)} Z"
-        fill="rgba(45,212,191,${(0.08+0.3*f).toFixed(2)})"/>`;
-    }
-  }
-  g.innerHTML = html;
-}
-
-function startScan(){
-  showStage('stage-scan');
-  buildRadar();
-  S.bins.fill(0); S.binHits.fill(0);
-  S.scanStart = performance.now();
-  S.waveHist.fill(0);
-  let lastPetal = 0;
-
-  function tick(now){
-    if (S.stage !== 'scan') return;
-    const rms = readRMS();
-    const excess = Math.max(0, rms - S.noiseFloor);
-    const h = S.heading;
-
-    // HUD
-    $('hudRms').textContent = rms.toFixed(3);
-    if (h != null){
-      $('hudDeg').textContent  = Math.round(h) + '°';
-      $('hudCard').textContent = cardFor(h);
-      $('beam') && $('beam').setAttribute('d', beamPath(h));
-      // rotate map under the fixed viewport so the world matches reality
-      const pane = S.map.getPane('mapPane');
-      pane.style.transformOrigin = '50% 50%';
-      pane.style.rotate = (-h)+'deg';
-      $('trails').style.rotate = (-h)+'deg';
-
-      // capture (heading, amplitude) pair
-      const bin = Math.floor(((h%360)+360)%360 / BIN_DEG) % NUM_BINS;
-      if (excess > S.bins[bin]) S.bins[bin] = excess;
-      S.binHits[bin]++;
-    }
-
-    // live wave chart
-    S.waveHist.shift();
-    S.waveHist.push(excess);
-    let maxW = 0.004;
-    for (const v of S.waveHist) if (v>maxW) maxW=v;
-    const stepX = 400/(S.waveHist.length-1);
-    let line = '', fill = 'M 0 56';
-    S.waveHist.forEach((v,i)=>{
-      const x=(i*stepX).toFixed(1), y=(54 - (v/maxW)*50).toFixed(1);
-      line += (i? ' L ':'M ')+x+' '+y;
-      fill += ' L '+x+' '+y;
-    });
-    fill += ' L 400 56 Z';
-    $('waveLine').setAttribute('d', line);
-    $('waveFill').setAttribute('d', fill);
-
-    if (now - lastPetal > 220){ drawPetals(); lastPetal = now; }
-
-    // coverage
-    let covered = 0;
-    for (let i=0;i<NUM_BINS;i++) if (S.binHits[i]) covered++;
-    const cov = covered/NUM_BINS;
-    $('covFill').style.width = (cov*100).toFixed(0)+'%';
-    $('covTxt').textContent  = (cov*100).toFixed(0)+'%';
-
-    const elapsed = now - S.scanStart;
-    if ((cov >= COVERAGE_DONE && elapsed >= SCAN_MIN_MS) || elapsed >= SCAN_MAX_MS){
-      finishScan();
-      return;
-    }
-    S.raf = requestAnimationFrame(tick);
-  }
-  S.raf = requestAnimationFrame(tick);
-}
-
-/* ---------- peak direction: circular-smoothed argmax + vector mean ---------- */
-function computeWindDirection(){
-  // smooth bins with circular kernel (±3 bins)
-  const sm = new Float32Array(NUM_BINS);
-  const K = [0.15,0.4,0.8,1,0.8,0.4,0.15];
-  for (let i=0;i<NUM_BINS;i++){
-    let acc=0, wsum=0;
-    for (let k=-3;k<=3;k++){
-      const j=(i+k+NUM_BINS)%NUM_BINS;
-      if (!S.binHits[j]) continue;
-      acc += S.bins[j]*K[k+3]; wsum += K[k+3];
-    }
-    sm[i] = wsum ? acc/wsum : 0;
-  }
-  let peak=0;
-  for (let i=1;i<NUM_BINS;i++) if (sm[i]>sm[peak]) peak=i;
-  if (sm[peak] <= 0) return null;
-
-  // refine with amplitude-weighted circular mean around the peak (±20°)
-  let sx=0, sy=0;
-  for (let k=-4;k<=4;k++){
-    const j=(peak+k+NUM_BINS)%NUM_BINS;
-    const ang=(j*BIN_DEG + BIN_DEG/2)*Math.PI/180;
-    sx += sm[j]*Math.sin(ang); sy += sm[j]*Math.cos(ang);
-  }
-  let deg = Math.atan2(sx,sy)*180/Math.PI;
-  return ((deg%360)+360)%360;
-}
-
-function finishScan(){
-  cancelAnimationFrame(S.raf);
-  const deg = computeWindDirection();
-  // un-rotate map for the reveal
-  const pane = S.map.getPane('mapPane');
-  pane.style.rotate = '0deg';
-  $('trails').style.rotate = '0deg';
-
-  if (deg == null){
-    toast('Vento troppo debole: nessun picco rilevato. Riprova all\'aperto.', 4200);
-    startScan();
-    return;
-  }
-  S.resultDeg = deg;
-  reveal(deg);
-}
-
-/* ---------- 4 · The Reveal ---------- */
-function buildRose(highlightDeg){
-  const svg = $('roseSvg'); svg.innerHTML='';
-  const NS='http://www.w3.org/2000/svg', cx=180, cy=180;
-  const mk=(t,a)=>{const el=document.createElementNS(NS,t);for(const k in a)el.setAttribute(k,a[k]);return el;};
-  const hlSector = Math.round(highlightDeg/45)%8;
-
+function buildCompass(){
+  const svg=$('compassSvg'); svg.innerHTML='';
   const defs=mk('defs',{});
   defs.innerHTML=`
-    <radialGradient id="roseGlow"><stop offset="0%" stop-color="rgba(34,211,238,.28)"/>
-      <stop offset="100%" stop-color="rgba(34,211,238,0)"/></radialGradient>
-    <linearGradient id="ptMain" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#e6f6ff"/><stop offset="100%" stop-color="#22d3ee"/></linearGradient>`;
+    <radialGradient id="dialGlow"><stop offset="62%" stop-color="rgba(8,16,26,.55)"/>
+      <stop offset="100%" stop-color="rgba(8,16,26,0)"/></radialGradient>
+    <linearGradient id="barGrad" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="rgba(34,211,238,.25)"/>
+      <stop offset="100%" stop-color="rgba(34,211,238,.95)"/></linearGradient>`;
   svg.appendChild(defs);
-  svg.appendChild(mk('circle',{cx,cy,r:172,fill:'url(#roseGlow)'}));
-  svg.appendChild(mk('circle',{cx,cy,r:150,fill:'rgba(6,10,18,.35)',
-    stroke:'rgba(34,211,238,.55)','stroke-width':1.5}));
-  svg.appendChild(mk('circle',{cx,cy,r:112,fill:'none',stroke:'rgba(120,220,255,.25)','stroke-width':1}));
 
-  // 16 points: long main (N,E,S,W), medium intercardinal, short minor
-  for (let i=0;i<16;i++){
-    const a=i*22.5, main=i%4===0, mid=i%2===0;
-    const len= main?140 : mid?100 : 62;
-    const w  = main?17  : mid?12  : 8;
-    const rad=(a-90)*Math.PI/180, prad=(a)*Math.PI/180;
-    const tipX=cx+len*Math.cos(rad),   tipY=cy+len*Math.sin(rad);
-    const lX=cx+w*Math.cos(rad-Math.PI/2), lY=cy+w*Math.sin(rad-Math.PI/2);
-    const rX=cx+w*Math.cos(rad+Math.PI/2), rY=cy+w*Math.sin(rad+Math.PI/2);
-    const hl = mid && Math.round(a/45)%8===hlSector && i%2===0;
-    // two-tone diamond halves for the classic compass-rose look
-    svg.appendChild(mk('path',{d:`M ${cx} ${cy} L ${lX} ${lY} L ${tipX} ${tipY} Z`,
-      fill: hl?'#22d3ee': main?'url(#ptMain)':'rgba(180,235,255,.75)',
-      opacity: hl?1: main?.95:.55,
-      style: hl?'filter:drop-shadow(0 0 10px rgba(34,211,238,1))':''}));
-    svg.appendChild(mk('path',{d:`M ${cx} ${cy} L ${rX} ${rY} L ${tipX} ${tipY} Z`,
-      fill: hl?'#0ea5bd': main?'rgba(34,211,238,.4)':'rgba(120,200,230,.25)',
-      opacity: hl?1:.85}));
+  // dial background (fixed)
+  svg.appendChild(mk('circle',{cx:CX,cy:CY,r:212,fill:'url(#dialGlow)'}));
+  svg.appendChild(mk('circle',{cx:CX,cy:CY,r:206,fill:'none',stroke:'rgba(120,220,255,.22)','stroke-width':1.5}));
+  svg.appendChild(mk('circle',{cx:CX,cy:CY,r:HISTO_R0-6,fill:'none',stroke:'rgba(120,220,255,.16)','stroke-width':1}));
+
+  /* ---- rotating world layer ---- */
+  roseG=mk('g',{id:'roseG'}); svg.appendChild(roseG);
+
+  // coverage ring: 72 arc segments that light up as you sweep
+  covG=mk('g',{}); roseG.appendChild(covG); covSegs=[];
+  for(let i=0;i<NUM_BINS;i++){
+    const a0=i*BIN_DEG+.7, a1=(i+1)*BIN_DEG-.7;
+    const [x0,y0]=pol(199,a0), [x1,y1]=pol(199,a1);
+    const seg=mk('path',{d:`M ${x0.toFixed(1)} ${y0.toFixed(1)} A 199 199 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`,
+      fill:'none',stroke:'rgba(120,220,255,.14)','stroke-width':7,'stroke-linecap':'butt'});
+    covG.appendChild(seg); covSegs.push(seg);
   }
-  // sector labels
-  WINDS.forEach((w,i)=>{
-    const a=i*45, rad=(a-90)*Math.PI/180;
-    const t=mk('text',{x:cx+163*Math.cos(rad), y:cy+163*Math.sin(rad),
-      fill: i===hlSector?'#7ef0ff':'rgba(150,205,225,.6)',
-      'font-size':i===hlSector?14:11,'font-weight':i===hlSector?800:600,
-      'text-anchor':'middle','dominant-baseline':'central','font-family':'Inter',
-      style:i===hlSector?'filter:drop-shadow(0 0 8px rgba(34,211,238,.9))':''});
-    t.textContent = w.dir.length>2 ? w.dir : w.dir;
-    t.textContent = w.dir;
-    svg.appendChild(t);
-  });
-  // incoming wind arrow (from resultDeg toward centre)
-  const rad=(highlightDeg-90)*Math.PI/180;
-  const ox=cx+205*Math.cos(rad), oy=cy+205*Math.sin(rad);
-  const ix=cx+58*Math.cos(rad),  iy=cy+58*Math.sin(rad);
-  const arrow=mk('g',{style:'filter:drop-shadow(0 0 10px rgba(251,191,36,.8))'});
-  arrow.appendChild(mk('line',{x1:ox,y1:oy,x2:ix,y2:iy,stroke:'#fbbf24','stroke-width':3,'stroke-linecap':'round','stroke-dasharray':'2 7'}));
-  const hrad=rad+Math.PI;
-  const h1=hrad+2.6, h2=hrad-2.6;
-  arrow.appendChild(mk('path',{d:`M ${ix} ${iy} L ${ix+16*Math.cos(h1)} ${iy+16*Math.sin(h1)}
-    L ${ix+16*Math.cos(h2)} ${iy+16*Math.sin(h2)} Z`, fill:'#fbbf24'}));
-  svg.appendChild(arrow);
-}
 
-function spawnTrails(deg){
-  const box=$('trails'); box.innerHTML='';
-  const W=innerWidth, H=innerHeight, D=Math.max(W,H)*1.5;
-  const rad=(deg+180-90)*Math.PI/180;         // motion vector: blowing TO
-  const dx=Math.cos(rad), dy=Math.sin(rad);
-  for (let i=0;i<14;i++){
-    const t=document.createElement('div'); t.className='trail';
-    const px = W/2 + (Math.random()-.5)*W*1.1 - dx*D/2;
-    const py = H/2 + (Math.random()-.5)*H*1.1 - dy*D/2;
-    t.style.setProperty('--x0', px+'px');
-    t.style.setProperty('--y0', py+'px');
-    t.style.setProperty('--x1', (px+dx*D)+'px');
-    t.style.setProperty('--y1', (py+dy*D)+'px');
-    t.style.setProperty('--rot', (deg+90)+'deg');
-    t.style.width = (70+Math.random()*130)+'px';
-    t.style.animationDuration = (2.4+Math.random()*2.6)+'s';
-    t.style.animationDelay = (Math.random()*2.5)+'s';
-    box.appendChild(t);
+  // degree ticks + labels
+  for(let a=0;a<360;a+=5){
+    const major=a%30===0, card=a%90===0;
+    const r1=card?176:major?180:185;
+    const [x1,y1]=pol(r1,a),[x2,y2]=pol(191,a);
+    roseG.appendChild(mk('line',{x1,y1,x2,y2,
+      stroke:card?'rgba(34,211,238,.9)':major?'rgba(160,225,250,.55)':'rgba(120,220,255,.22)',
+      'stroke-width':card?2.5:major?1.6:1}));
+    if(major&&!card){
+      const [tx,ty]=pol(166,a);
+      const t=mk('text',{x:tx,y:ty,fill:'rgba(150,205,225,.55)','font-size':10,'font-weight':600,
+        'text-anchor':'middle','dominant-baseline':'central','font-family':'Inter',
+        transform:`rotate(${a} ${tx} ${ty})`});
+      t.textContent=a; roseG.appendChild(t);
+    }
   }
+  // cardinal + intercardinal letters (kept upright-ish by rotating with rose; N highlighted)
+  for(let i=0;i<8;i++){
+    const a=i*45,[tx,ty]=pol(158,a);
+    const isN=i===0;
+    const t=mk('text',{x:tx,y:ty,fill:isN?'#fbbf24':'rgba(210,240,255,.9)',
+      'font-size':isN?22:15,'font-weight':800,'text-anchor':'middle','dominant-baseline':'central',
+      'font-family':'Inter',transform:`rotate(${a} ${tx} ${ty})`,
+      style:isN?'filter:drop-shadow(0 0 8px rgba(251,191,36,.9))':''});
+    t.textContent=['N','NE','E','SE','S','SW','W','NW'][i];
+    roseG.appendChild(t);
+  }
+  // north needle on the rose
+  const [nx,ny]=pol(138,0);
+  roseG.appendChild(mk('path',{d:`M ${CX-7} ${CY-HISTO_R0+4} L ${CX} ${ny} L ${CX+7} ${CY-HISTO_R0+4} Z`,
+    fill:'rgba(251,191,36,.35)',stroke:'rgba(251,191,36,.7)','stroke-width':1}));
+
+  // circular histogram + peak marker live in the world layer
+  histoG=mk('g',{}); roseG.appendChild(histoG);
+  peakG=mk('g',{}); roseG.appendChild(peakG);
+
+  /* ---- fixed device marker (lubber line): where the PHONE points ---- */
+  const lub=mk('g',{style:'filter:drop-shadow(0 0 8px rgba(34,211,238,.9))'});
+  lub.appendChild(mk('path',{d:`M ${CX-11} ${CY-227} L ${CX} ${CY-204} L ${CX+11} ${CY-227} Z`,fill:'#22d3ee'}));
+  lub.appendChild(mk('line',{x1:CX,y1:CY-204,x2:CX,y2:CY-192,stroke:'#22d3ee','stroke-width':2.5}));
+  svg.appendChild(lub);
 }
 
-function reveal(deg){
-  const wind = windFor(deg);
-  showStage('stage-result');
-  buildRose(deg);
-  spawnTrails(deg);
+/* histogram redraw (~8 fps is plenty) */
+function drawHisto(){
+  let max=0;
+  for(let i=0;i<NUM_BINS;i++) if(S.bins[i]>max) max=S.bins[i];
+  if(max<=0){ histoG.innerHTML=''; peakG.innerHTML=''; return; }
 
-  // kinetic map move: zoom out, then ease back onto the GPS marker
-  const target = (S.lat!=null) ? [S.lat,S.lon] : S.map.getCenter();
-  S.map.flyTo(target, 13, {duration:.9});
-  setTimeout(()=> S.map.flyTo(target, 17, {duration:1.6, easeLinearity:.18}), 1000);
+  const peakBin = S.peakDeg==null ? -1 : Math.floor(norm(S.peakDeg)/BIN_DEG)%NUM_BINS;
+  let html='';
+  for(let i=0;i<NUM_BINS;i++){
+    if(!S.hits[i]) continue;
+    const f=S.bins[i]/max;
+    const r=HISTO_R0+(HISTO_R1-HISTO_R0)*f;
+    const a0=i*BIN_DEG+.8, a1=(i+1)*BIN_DEG-.8;
+    const [xo0,yo0]=pol(r,a0),[xo1,yo1]=pol(r,a1);
+    const [xi0,yi0]=pol(HISTO_R0,a0),[xi1,yi1]=pol(HISTO_R0,a1);
+    const hot=peakBin>=0 && Math.min(Math.abs(i-peakBin),NUM_BINS-Math.abs(i-peakBin))<=1;
+    html+=`<path d="M ${xi0.toFixed(1)} ${yi0.toFixed(1)} L ${xo0.toFixed(1)} ${yo0.toFixed(1)}
+      A ${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 ${xo1.toFixed(1)} ${yo1.toFixed(1)}
+      L ${xi1.toFixed(1)} ${yi1.toFixed(1)} A ${HISTO_R0} ${HISTO_R0} 0 0 0 ${xi0.toFixed(1)} ${yi0.toFixed(1)} Z"
+      fill="${hot?'#fbbf24':'url(#barGrad)'}" opacity="${(0.35+0.65*f).toFixed(2)}"
+      ${hot?'style="filter:drop-shadow(0 0 9px rgba(251,191,36,.95))"':''}/>`;
+  }
+  histoG.innerHTML=html;
 
-  $('resName').textContent = wind.name;
-  $('resDeg').textContent  = Math.round(deg)+'° '+cardFor(deg);
-  $('resCoord').textContent = (S.lat!=null)
-    ? S.lat.toFixed(4)+', '+S.lon.toFixed(4) : 'n/d';
-
-  requestAnimationFrame(()=>requestAnimationFrame(()=>
-    $('stage-result').classList.add('revealed')));
-
-  saveReading(deg, wind);
-  setMapInteractive(true);
+  // peak arrow: wind blowing FROM peakDeg toward the centre
+  if(S.peakDeg!=null){
+    const [ox,oy]=pol(196,S.peakDeg),[ix,iy]=pol(HISTO_R0+8,S.peakDeg);
+    const rad=(S.peakDeg-90)*Math.PI/180+Math.PI;
+    const h1=rad+2.65,h2=rad-2.65;
+    peakG.innerHTML=`
+      <line x1="${ox.toFixed(1)}" y1="${oy.toFixed(1)}" x2="${ix.toFixed(1)}" y2="${iy.toFixed(1)}"
+        stroke="#fbbf24" stroke-width="3" stroke-linecap="round" stroke-dasharray="2 8"
+        style="filter:drop-shadow(0 0 8px rgba(251,191,36,.9))"/>
+      <path d="M ${ix.toFixed(1)} ${iy.toFixed(1)}
+        L ${(ix+15*Math.cos(h1)).toFixed(1)} ${(iy+15*Math.sin(h1)).toFixed(1)}
+        L ${(ix+15*Math.cos(h2)).toFixed(1)} ${(iy+15*Math.sin(h2)).toFixed(1)} Z"
+        fill="#fbbf24" style="filter:drop-shadow(0 0 8px rgba(251,191,36,.9))"/>`;
+  } else peakG.innerHTML='';
 }
 
-$('btnRescan').addEventListener('click', ()=>{
-  $('stage-result').classList.remove('revealed');
-  $('trails').innerHTML='';
-  $('drawer').classList.remove('open');
-  setMapInteractive(false);
-  startCalibration();
+/* =====================================================================
+   PEAK DIRECTION — circular smoothing + weighted circular mean
+===================================================================== */
+function computePeak(){
+  const K=[.15,.4,.8,1,.8,.4,.15];
+  const sm=new Float32Array(NUM_BINS);
+  for(let i=0;i<NUM_BINS;i++){
+    let acc=0,w=0;
+    for(let k=-3;k<=3;k++){
+      const j=(i+k+NUM_BINS)%NUM_BINS;
+      if(!S.hits[j]) continue;
+      acc+=S.bins[j]*K[k+3]; w+=K[k+3];
+    }
+    sm[i]=w?acc/w:0;
+  }
+  let p=0; for(let i=1;i<NUM_BINS;i++) if(sm[i]>sm[p]) p=i;
+  if(sm[p]<=0.0015) return null; // nothing above the noise floor yet
+  let sx=0,sy=0;
+  for(let k=-4;k<=4;k++){
+    const j=(p+k+NUM_BINS)%NUM_BINS;
+    const a=(j*BIN_DEG+BIN_DEG/2)*Math.PI/180;
+    sx+=sm[j]*Math.sin(a); sy+=sm[j]*Math.cos(a);
+  }
+  return norm(Math.atan2(sx,sy)*180/Math.PI);
+}
+
+/* =====================================================================
+   MAIN LOOP — calibrate 3 s, then live sweep forever (no dead ends)
+===================================================================== */
+let calT0=0, calSamples=[], lastHisto=0, compassWarned=false, startT=0;
+
+function setStatus(txt,done){
+  $('statusTxt').textContent=txt;
+  $('statusChip').classList.toggle('done',!!done);
+}
+
+function beginSession(demo){
+  S.demo=demo; S.running=true;
+  $('stage-welcome').classList.add('hidden');
+  $('instrument').classList.add('on');
+  buildCompass();
+  resetScan();
+  requestAnimationFrame(loop);
+}
+
+function resetScan(){
+  S.bins.fill(0); S.hits.fill(0);
+  S.peakDeg=null; S.complete=false; S.saved=false;
+  S.calibrating=true; calT0=performance.now(); calSamples=[];
+  S.demoT0=performance.now();
+  startT=performance.now();
+  $('btnSave').disabled=true;
+  $('calOverlay').classList.remove('hidden');
+  $('peakName').textContent='In ascolto…'; $('peakName').classList.add('idle');
+  $('peakDeg').textContent='';
+  setStatus('Calibrazione',false);
+  covSegs.forEach(s=>{s.setAttribute('stroke','rgba(120,220,255,.14)');s.removeAttribute('style');});
+  if(histoG){histoG.innerHTML='';peakG.innerHTML='';}
+  $('covFill').style.width='0%'; $('covTxt').textContent='0%';
+}
+
+function loop(now){
+  if(!S.running) return;
+  if(S.demo) demoTick(now);
+
+  const rms=readRMS();
+
+  /* ---- display-smoothed heading (shortest-path easing) ---- */
+  if(S.heading!=null){
+    if(S.smHeading==null) S.smHeading=S.heading;
+    let d=norm(S.heading-S.smHeading); if(d>180)d-=360;
+    S.smHeading=norm(S.smHeading+d*0.18);
+    roseG.setAttribute('transform',`rotate(${(-S.smHeading).toFixed(2)} ${CX} ${CY})`);
+    $('hudDeg').textContent=Math.round(norm(S.smHeading))+'°';
+    $('hudCard').textContent=cardFor(S.smHeading);
+  } else if(!compassWarned && !S.demo && now-startT>4000){
+    compassWarned=true;
+    toast('Nessun dato bussola: consenti l\'accesso a Movimento e Orientamento nelle impostazioni di Safari',5000);
+  }
+
+  /* ---- calibration window ---- */
+  if(S.calibrating){
+    const p=Math.min((now-calT0)/CAL_MS,1);
+    $('calProg').style.strokeDashoffset=414.7*(1-p);
+    $('calNum').textContent=Math.ceil((CAL_MS-(now-calT0))/1000)||1;
+    calSamples.push(rms);
+    if(p>=1){
+      calSamples.sort((a,b)=>a-b);
+      S.noiseFloor=calSamples[Math.floor(calSamples.length/2)]||0;
+      S.calibrating=false;
+      $('calOverlay').classList.add('hidden');
+      setStatus('Ruota di 360°',false);
+    }
+    requestAnimationFrame(loop); return;
+  }
+
+  /* ---- live capture (heading, amplitude) ---- */
+  const excess=Math.max(0,rms-S.noiseFloor);
+  $('rmsFill').style.width=Math.min(excess*900,100)+'%';
+
+  if(S.heading!=null){
+    const bin=Math.floor(norm(S.heading)/BIN_DEG)%NUM_BINS;
+    if(excess>S.bins[bin]) S.bins[bin]=excess;
+    if(!S.hits[bin]){
+      S.hits[bin]=1;
+      covSegs[bin].setAttribute('stroke','#2dd4bf');
+      covSegs[bin].setAttribute('style','filter:drop-shadow(0 0 4px rgba(45,212,191,.9))');
+    } else S.hits[bin]++;
+  }
+
+  /* ---- coverage + live peak ---- */
+  let covered=0; for(let i=0;i<NUM_BINS;i++) if(S.hits[i]) covered++;
+  const cov=covered/NUM_BINS;
+  $('covFill').style.width=(cov*100).toFixed(0)+'%';
+  $('covTxt').textContent=(cov*100).toFixed(0)+'%';
+
+  if(now-lastHisto>140){
+    lastHisto=now;
+    S.peakDeg=computePeak();
+    drawHisto();
+    if(S.peakDeg!=null){
+      const w=windFor(S.peakDeg);
+      $('peakName').textContent=w.name;
+      $('peakName').classList.remove('idle');
+      $('peakDeg').textContent=Math.round(S.peakDeg)+'° '+cardFor(S.peakDeg);
+      $('btnSave').disabled=false;
+    }
+  }
+
+  /* ---- sweep complete? (keeps running & refining afterwards) ---- */
+  if(!S.complete && cov>=COVERAGE_DONE){
+    S.complete=true;
+    setStatus('Giro completo · direzione trovata',true);
+    const box=$('compassBox');
+    box.classList.remove('pulse'); void box.offsetWidth; box.classList.add('pulse');
+    if(navigator.vibrate) navigator.vibrate([40,60,40]);
+  }
+
+  requestAnimationFrame(loop);
+}
+
+/* =====================================================================
+   CONTROLS
+===================================================================== */
+$('btnStart').addEventListener('click',async ()=>{
+  const btn=$('btnStart');
+  btn.disabled=true;
+  btn.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Attivazione…';
+  const okCompass=await startCompass(); // must stay inside the tap gesture (iOS)
+  const okMic=await startMic();
+  startGeo();
+  if(!okMic){
+    btn.disabled=false;
+    btn.innerHTML='<i class="fa-solid fa-wind"></i> Riprova';
+    return;
+  }
+  if(!okCompass) toast('Bussola non attiva: la rosa non potrà ruotare',4000);
+  beginSession(false);
 });
-$('btnHistory').addEventListener('click', ()=> $('drawer').classList.add('open'));
+
+$('btnDemo').addEventListener('click',()=>{ toast('Demo: sensori simulati',2500); beginSession(true); });
+
+$('btnReset').addEventListener('click',()=>resetScan());
+$('btnHistory').addEventListener('click',()=>$('drawer').classList.toggle('open'));
+$('btnSave').addEventListener('click',()=>{
+  if(S.peakDeg==null) return;
+  saveReading(S.peakDeg,windFor(S.peakDeg));
+  toast('Rilevazione salvata nello storico',2200);
+  $('drawer').classList.add('open');
+});
 
 /* =====================================================================
    LOCAL STORAGE LOG
 ===================================================================== */
-const LS_KEY = 'windrose_log_v1';
-const loadLog = ()=>{ try{ return JSON.parse(localStorage.getItem(LS_KEY))||[] }catch(e){ return [] } };
-const persist = rows => localStorage.setItem(LS_KEY, JSON.stringify(rows));
+const LS_KEY='windrose_log_v1';
+const loadLog=()=>{try{return JSON.parse(localStorage.getItem(LS_KEY))||[]}catch(e){return[]}};
+const persist=r=>localStorage.setItem(LS_KEY,JSON.stringify(r));
 
-function saveReading(deg, wind){
-  const rows = loadLog();
-  rows.unshift({
-    ts: Date.now(),
-    lat: S.lat, lon: S.lon,
-    sector: wind.name,
-    angle: Math.round(deg*10)/10,
-  });
+function saveReading(deg,wind){
+  const rows=loadLog();
+  rows.unshift({ts:Date.now(),lat:S.lat,lon:S.lon,sector:wind.name,angle:Math.round(deg*10)/10});
   persist(rows.slice(0,100));
   renderLog();
 }
-
 function renderLog(){
-  const rows = loadLog(), box = $('logList');
-  if (!rows.length){
-    box.innerHTML = '<div class="log-empty"><i class="fa-solid fa-wind"></i>&nbsp; Nessuna rilevazione salvata</div>';
+  const rows=loadLog(),box=$('logList');
+  if(!rows.length){
+    box.innerHTML='<div class="log-empty"><i class="fa-solid fa-wind"></i>&nbsp; Nessuna rilevazione salvata</div>';
     return;
   }
-  box.innerHTML = rows.map((r,i)=>{
-    const d = new Date(r.ts);
-    const when = d.toLocaleDateString('it-IT',{day:'2-digit',month:'short'})+' · '+
-                 d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
-    const pos = (r.lat!=null)? r.lat.toFixed(4)+', '+r.lon.toFixed(4) : 'posizione n/d';
+  box.innerHTML=rows.map((r,i)=>{
+    const d=new Date(r.ts);
+    const when=d.toLocaleDateString('it-IT',{day:'2-digit',month:'short'})+' · '+
+               d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+    const pos=(r.lat!=null)?r.lat.toFixed(4)+', '+r.lon.toFixed(4):'posizione n/d';
     return `<div class="log-row">
       <div class="rose"><i class="fa-solid fa-location-arrow" style="transform:rotate(${(r.angle-45).toFixed(0)}deg)"></i></div>
       <div class="info">
@@ -977,18 +779,15 @@ function renderLog(){
   }).join('');
   box.querySelectorAll('.del').forEach(b=>b.addEventListener('click',e=>{
     e.stopPropagation();
-    const rows = loadLog(); rows.splice(+b.dataset.i,1); persist(rows); renderLog();
+    const rows=loadLog(); rows.splice(+b.dataset.i,1); persist(rows); renderLog();
   }));
 }
-
-$('drawerHandle').addEventListener('click', e=>{
-  if (e.target.closest('#clearLog')) return;
+$('drawerHandle').addEventListener('click',e=>{
+  if(e.target.closest('#clearLog')) return;
   $('drawer').classList.toggle('open');
 });
-$('clearLog').addEventListener('click', ()=>{
-  if (confirm('Cancellare tutto lo storico delle rilevazioni?')){
-    persist([]); renderLog();
-  }
+$('clearLog').addEventListener('click',()=>{
+  if(confirm('Cancellare tutto lo storico delle rilevazioni?')){ persist([]); renderLog(); }
 });
 
 /* =====================================================================
@@ -996,9 +795,8 @@ $('clearLog').addEventListener('click', ()=>{
 ===================================================================== */
 initMap();
 renderLog();
-// block iOS rubber-band scroll
-document.addEventListener('touchmove', e=>{
-  if (!e.target.closest('#logList') && !e.target.closest('#map')) e.preventDefault();
+document.addEventListener('touchmove',e=>{
+  if(!e.target.closest('#logList')) e.preventDefault();
 },{passive:false});
 </script>
 </body>
